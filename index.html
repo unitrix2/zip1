@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZIP Explorer Pro (Dual Engine Edition)</title>
+<title>ZIP Explorer Pro (Ultimate Edition)</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -73,7 +73,7 @@
   
   .viewer-body { position: relative; flex: 1; background: #050505; display: flex; align-items: center; justify-content: center; overflow: hidden; }
   
-  /* Media Specific Styles */
+  /* Media Specific Styles with GPU Acceleration */
   video { width: 100%; height: 100%; outline: none; background: #000; transform: translateZ(0); will-change: transform; backface-visibility: hidden; }
   audio { width: 80%; max-width: 600px; outline: none; }
   .img-viewer { max-width: 100%; max-height: 100%; object-fit: contain; }
@@ -115,13 +115,16 @@
   @keyframes slideInRight { from { opacity:0; transform:translateX(50px); } to { opacity:1; transform:translateX(0); } }
   @keyframes fadeOutRight { from { opacity:1; transform:translateX(0); } to { opacity:0; transform:translateX(50px); } }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip/dist/jszip.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/docx-preview/dist/docx-preview.min.js" defer></script>
 </head>
 <body>
 
 <div class="container">
   <header>
     <div class="logo">ZIP Explorer Pro</div>
-    <div class="tagline">Browse · Stream · Pro View</div>
+    <div class="tagline">Browse · Stream · Insta-Load</div>
   </header>
 
   <div class="input-zone">
@@ -166,7 +169,7 @@
       <div id="viewerInfo" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;"></div>
       
       <div style="display: flex; gap: 15px; align-items: center;">
-        <label class="engine-toggle-wrap" title="Agar file load hone me fas rahi ho, toh is safe mode ko ON karke dekhein.">
+        <label class="engine-toggle-wrap" id="engineToggleWrap" title="Agar document fail ho, toh is safe mode ko ON karke dekhein.">
           <input type="checkbox" class="toggle-checkbox" id="engineToggle" onchange="toggleEngine()">
           <div class="toggle-slider"></div>
           SW Mode
@@ -178,7 +181,7 @@
 </div>
 
 <script>
-// ─── Service Worker Setup ───
+// ─── Service Worker Setup (NO CHANGES HERE) ───
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').then(reg => {
         navigator.serviceWorker.addEventListener('controllerchange', () => { window.location.reload(); });
@@ -237,17 +240,6 @@ function canView(name) { return Object.values(EXT).some(arr => arr.includes(getE
 function formatSize(bytes) { if (!bytes) return '—'; const u = ['B','KB','MB','GB']; let i=0; while(bytes>=1024 && i<3){bytes/=1024; i++;} return bytes.toFixed(1) + ' ' + u[i]; }
 
 let zipUrl = ''; let zipSize = 0; let allFiles = [];
-
-// ─── Preloader Logic ───
-function preloadViewerLibraries() {
-    // Background me silently load karega taaki document opening INSTANT ho
-    setTimeout(() => {
-        loadScript('https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js').catch(()=>{});
-        loadScript('https://cdn.jsdelivr.net/npm/jszip/dist/jszip.min.js').then(() => {
-            loadScript('https://cdn.jsdelivr.net/npm/docx-preview/dist/docx-preview.min.js').catch(()=>{});
-        }).catch(()=>{});
-    }, 1500);
-}
 
 // ─── ZIP Parser Logic ───
 async function fetchRange(url, start, end) {
@@ -327,9 +319,6 @@ async function loadZip() {
     renderFiles(allFiles);
     document.getElementById('explorer').classList.add('show');
     showToast('✅ ZIP Index Loaded!', 3000);
-    
-    // Trigger Preloader for Insta-Load Engine
-    preloadViewerLibraries();
 
   } catch(e) { showToast(`❌ Fetch Error: ${e.message}`); }
 }
@@ -358,17 +347,7 @@ async function downloadFile(path) {
   } catch(e) { showToast(`❌ Error: ${e.message}`); }
 }
 
-// ─── Script Loader ───
-function loadScript(src) {
-    return new Promise((resolve, reject) => {
-        if (document.querySelector(`script[src="${src}"]`)) return resolve();
-        const s = document.createElement('script');
-        s.src = src; s.onload = resolve; s.onerror = reject;
-        document.head.appendChild(s);
-    });
-}
-
-// ─── Dual Engine Logic ───
+// ─── Dual Engine View Logic ───
 let windowUseSwMode = false;
 window.currentViewingPath = null;
 window.currentBlobUrl = null;
@@ -391,12 +370,22 @@ async function viewFile(path) {
   const dlBtn = document.getElementById('viewerDownloadBtn');
   const info = document.getElementById('viewerInfo');
   const loadingTxt = document.getElementById('loadingText');
+  const toggleWrap = document.getElementById('engineToggleWrap');
   
-  // Reset UI Memory Leak Protection
+  // Cleanup memory
   if (window.currentBlobUrl) { URL.revokeObjectURL(window.currentBlobUrl); window.currentBlobUrl = null; }
   container.innerHTML = '';
   
-  const engineBadge = windowUseSwMode ? '<span class="badge" style="color:#a855f7; border-color:#a855f7;">SW Mode</span>' : '<span class="badge" style="color:#10b981; border-color:#10b981;">⚡ Insta-Load</span>';
+  const ext = f.ext;
+  
+  // SMART UI: Hide toggle for Video/Audio so they NEVER get interfered with.
+  if (EXT.VIDEO.includes(ext) || EXT.AUDIO.includes(ext)) {
+      toggleWrap.style.display = 'none';
+  } else {
+      toggleWrap.style.display = 'flex'; // Show only for docs/images
+  }
+
+  const engineBadge = (EXT.VIDEO.includes(ext) || EXT.AUDIO.includes(ext)) ? '<span class="badge" style="color:#38bdf8; border-color:#38bdf8;">Native Stream</span>' : (windowUseSwMode ? '<span class="badge" style="color:#a855f7; border-color:#a855f7;">SW Mode</span>' : '<span class="badge" style="color:#10b981; border-color:#10b981;">⚡ Insta-Load</span>');
   info.innerHTML = `${engineBadge} <span class="badge">Format: ${f.ext.toUpperCase()}</span> <span class="badge">Size: ${formatSize(f.size)}</span>`;
   title.innerHTML = `${getIcon(f.name)} ${f.name}`;
   
@@ -408,9 +397,7 @@ async function viewFile(path) {
 
   try {
       await prepareFileData(f);
-      const ext = f.ext;
       
-      // Warn if video is compressed
       if (EXT.VIDEO.includes(ext) && f.compression !== 0) {
           info.innerHTML += ` <span class="badge warn">⚠️ Compressed Video (May stutter)</span>`;
       }
@@ -418,20 +405,20 @@ async function viewFile(path) {
           info.innerHTML += ` <span class="badge warn">🔒 Macros Disabled (View Only)</span>`;
       }
 
-      // --- ENGINE SELECTION ---
+      // --- ENGINE SELECTION (Strict Isolation) ---
       let targetStreamUrl = '';
       let targetArrayBuffer = null;
 
-      // Rule: Video & Audio ALWAYS use SW Stream because they need range-requests for seeking.
+      // 1. VIDEO & AUDIO ALWAYS use SW Stream (Unchanged, Perfect Logic)
       if (EXT.VIDEO.includes(ext) || EXT.AUDIO.includes(ext)) {
+          loadingTxt.textContent = "Buffering Stream...";
           const streamId = 'vid_' + Date.now();
           await registerStreamSW(streamId, { zipUrl, compression: f.compression, size: f.size, dataStart: f.dataStart, dataEnd: f.dataEnd, name: f.name });
           targetStreamUrl = window.location.pathname + `?sw_stream=${streamId}`;
       } 
-      // Rule: Documents and Images use the Dual Engine Toggle
+      // 2. DOCUMENTS & IMAGES (Dual Engine)
       else {
           if (windowUseSwMode) {
-              // 1. SW Stream Engine (Secondary / Safe Mode)
               loadingTxt.textContent = "Loading via SW Engine...";
               const streamId = 'doc_' + Date.now();
               await registerStreamSW(streamId, { zipUrl, compression: f.compression, size: f.size, dataStart: f.dataStart, dataEnd: f.dataEnd, name: f.name });
@@ -442,18 +429,15 @@ async function viewFile(path) {
                   targetArrayBuffer = await res.arrayBuffer();
               }
           } else {
-              // 2. Insta-Load Engine (Primary / Direct RAM Bypass)
+              // INSTA-LOAD ENGINE (Direct Fetch)
               loadingTxt.textContent = "Insta-Loading to RAM...";
-              
               const fetchHeaders = new Headers();
-              // Fetch full chunk directly to memory
               fetchHeaders.set('Range', `bytes=${f.dataStart}-${f.dataEnd}`);
               
               const directRes = await fetch(zipUrl, { headers: fetchHeaders });
-              if (!directRes.ok) throw new Error("Server blocked direct chunk read.");
+              if (!directRes.ok) throw new Error("Server blocked direct read.");
               
               let memoryStream = directRes.body;
-              // Decode on-the-fly directly in browser RAM without SW
               if (f.compression === 8) {
                   memoryStream = memoryStream.pipeThrough(new DecompressionStream('deflate-raw'));
               }
@@ -463,7 +447,7 @@ async function viewFile(path) {
                   const blob = await decompressedRes.blob();
                   const typedBlob = new Blob([blob], { type: getMimeType(f.name) });
                   targetStreamUrl = URL.createObjectURL(typedBlob);
-                  window.currentBlobUrl = targetStreamUrl; // Store for cleanup
+                  window.currentBlobUrl = targetStreamUrl; 
               } else if (EXT.OFFICE.includes(ext)) {
                   targetArrayBuffer = await decompressedRes.arrayBuffer();
               }
@@ -497,7 +481,9 @@ async function viewFile(path) {
           
           if (['xls', 'xlsx', 'xlsm', 'csv'].includes(ext)) {
               loadingTxt.textContent = "Rendering Excel Sheets...";
-              await loadScript('https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js');
+              
+              // Wait for preloaded library just in case user clicked extremely fast
+              while(typeof XLSX === 'undefined') { await new Promise(r => setTimeout(r, 100)); }
               
               const wb = XLSX.read(targetArrayBuffer, {type: 'array'});
               window.currentExcelWb = wb; 
@@ -523,8 +509,9 @@ async function viewFile(path) {
           } 
           else if (['doc', 'docx'].includes(ext)) {
               loadingTxt.textContent = "Rendering Word Document...";
-              await loadScript('https://cdn.jsdelivr.net/npm/jszip/dist/jszip.min.js');
-              await loadScript('https://cdn.jsdelivr.net/npm/docx-preview/dist/docx-preview.min.js');
+              
+              while(typeof docx === 'undefined') { await new Promise(r => setTimeout(r, 100)); }
+              
               container.innerHTML = `<div class="office-container" style="overflow:auto;"><div class="office-doc" id="officeDocArea"></div></div>`;
               try { await docx.renderAsync(targetArrayBuffer, document.getElementById('officeDocArea')); }
               catch { container.innerHTML = `<div style="color:#fff;">Word render failed. Please download the file.</div>`; }
