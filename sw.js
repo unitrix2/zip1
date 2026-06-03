@@ -20,7 +20,7 @@ self.addEventListener('message', event => {
 self.addEventListener('fetch', event => {
     const url = new URL(event.request.url);
     
-    // FIX: Used query parameter instead of path to guarantee Service Worker scope interception
+    // Intercepting via Query Params to bypass scope issues completely
     if (url.searchParams.has('sw_stream')) {
         const id = url.searchParams.get('sw_stream');
         const fileData = activeStreams.get(id);
