@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZIP Explorer Pro (Advanced Edition)</title>
+<title>ZIP Explorer Pro (Universal Viewer Edition)</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -36,8 +36,8 @@
   .btn-sm { padding: 0.5rem 1rem; font-size: 0.8rem; border-radius: 8px; }
   .btn-download { background: rgba(56, 189, 248, 0.1); color: var(--accent); border: 1px solid rgba(56, 189, 248, 0.2); }
   .btn-download:hover { background: rgba(56, 189, 248, 0.2); }
-  .btn-play { background: rgba(16, 185, 129, 0.1); color: var(--accent3); border: 1px solid rgba(16, 185, 129, 0.2); }
-  .btn-play:hover { background: rgba(16, 185, 129, 0.2); }
+  .btn-view { background: rgba(16, 185, 129, 0.1); color: var(--accent3); border: 1px solid rgba(16, 185, 129, 0.2); }
+  .btn-view:hover { background: rgba(16, 185, 129, 0.2); }
 
   /* Status & Explorer */
   .status-bar { display: flex; gap: 0.75rem; margin-top: 1.2rem; flex-wrap: wrap; align-items: center; }
@@ -61,38 +61,35 @@
   .toast { background: rgba(24, 24, 27, 0.9); backdrop-filter: blur(10px); border: 1px solid var(--border); border-left: 4px solid var(--accent); color: var(--text); padding: 1rem 1.5rem; border-radius: 8px; font-size: 0.85rem; font-weight: 500; box-shadow: 0 10px 30px rgba(0,0,0,0.3); animation: slideInRight 0.3s ease forwards; display: flex; align-items: center; gap: 0.75rem; }
   .toast.fadeOut { animation: fadeOutRight 0.4s ease forwards; }
 
-  /* Advanced Player Modal */
+  /* Universal Viewer Modal */
   .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(16px); z-index: 2000; display: none; align-items: center; justify-content: center; padding: 1rem; }
   .modal-backdrop.show { display: flex; animation: fadeIn 0.3s ease; }
-  .player-modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; width: 100%; max-width: 950px; box-shadow: 0 30px 80px rgba(0,0,0,0.8); display: flex; flex-direction: column; }
-  .player-header { padding: 1rem 1.5rem; background: rgba(0,0,0,0.4); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
-  .player-title { font-size: 0.9rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 0.5rem; }
+  .viewer-modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; width: 100%; max-width: 1000px; height: 85vh; display: flex; flex-direction: column; box-shadow: 0 30px 80px rgba(0,0,0,0.8); }
+  .viewer-header { padding: 1rem 1.5rem; background: rgba(0,0,0,0.4); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .viewer-title { font-size: 0.9rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 0.5rem; }
   .modal-close { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text); cursor: pointer; font-size: 1.2rem; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
   .modal-close:hover { background: var(--danger); border-color: var(--danger); }
   
-  .player-body { position: relative; background: #000; width: 100%; aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; }
+  .viewer-body { position: relative; flex: 1; background: #050505; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  
+  /* Media Specific Styles */
   video { width: 100%; height: 100%; outline: none; background: #000; }
-  #wasmContainer { width: 100%; height: 100%; display: none; flex-direction: column; align-items: center; justify-content: center; background: #050505; color: var(--muted); font-family: var(--font-mono); text-align: center; padding: 2rem; border: 1px dashed var(--border); }
-  .spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 1rem; }
+  audio { width: 80%; max-width: 600px; outline: none; }
+  .img-viewer { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .pdf-viewer { width: 100%; height: 100%; border: none; background: #fff; }
+  
+  /* Office Document Viewer */
+  .office-container { width: 100%; height: 100%; background: #f3f4f6; color: #111827; overflow: auto; padding: 2rem; display: flex; justify-content: center; }
+  .office-doc { background: #fff; width: 100%; max-width: 850px; min-height: 100%; padding: 3rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-radius: 4px; overflow-x: auto; font-family: 'Arial', sans-serif; }
+  .office-doc table { border-collapse: collapse; width: 100%; }
+  .office-doc td, .office-doc th { border: 1px solid #d1d5db; padding: 8px; font-size: 0.85rem; }
+  .office-doc th { background: #e5e7eb; font-weight: bold; }
 
-  /* Advanced Controls Bar */
-  .player-controls-pro { padding: 1rem 1.5rem; background: var(--surface2); border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
-  .pro-warning { font-size: 0.75rem; color: var(--muted); flex: 1; min-width: 250px; line-height: 1.4; }
-  .pro-warning b { color: var(--text); }
-  .pro-tools { display: flex; align-items: center; gap: 1.5rem; }
-
-  /* iOS Style Toggle */
-  .toggle-wrapper { display: flex; align-items: center; gap: 0.6rem; font-size: 0.8rem; font-weight: 600; color: var(--text); cursor: pointer; }
-  .toggle-switch { position: relative; width: 44px; height: 24px; background: var(--border); border-radius: 24px; transition: 0.3s; }
-  .toggle-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background: #fff; border-radius: 50%; transition: 0.3s; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-  input[type="checkbox"]:checked + .toggle-switch { background: var(--accent2); box-shadow: 0 0 10px rgba(139, 92, 246, 0.4); }
-  input[type="checkbox"]:checked + .toggle-switch::after { transform: translateX(20px); }
-
-  /* Select Box */
-  .custom-select { appearance: none; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: var(--text); padding: 0.5rem 2rem 0.5rem 1rem; border-radius: 8px; font-family: var(--font-sans); font-size: 0.8rem; font-weight: 500; outline: none; cursor: pointer; }
-  .custom-select:disabled { opacity: 0.5; cursor: not-allowed; }
-  .select-wrapper { position: relative; }
-  .select-wrapper::after { content: '▼'; position: absolute; right: 0.8rem; top: 50%; transform: translateY(-50%); font-size: 0.6rem; color: var(--muted); pointer-events: none; }
+  /* Loading State */
+  .viewer-loading { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(5,5,5,0.9); z-index: 10; gap: 1rem; color: var(--muted); font-size: 0.9rem; }
+  .spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
+  
+  .viewer-footer { padding: 0.8rem 1.5rem; background: var(--surface2); border-top: 1px solid var(--border); font-size: 0.75rem; color: var(--muted); flex-shrink: 0; display: flex; justify-content: space-between; align-items: center;}
 
   @keyframes spin { 100% { transform: rotate(360deg); } }
   @keyframes fadeDown { from { opacity:0; transform:translateY(-20px); } to { opacity:1; transform:translateY(0); } }
@@ -107,7 +104,7 @@
 <div class="container">
   <header>
     <div class="logo">ZIP Explorer Pro</div>
-    <div class="tagline">Browse · Stream · Native Download</div>
+    <div class="tagline">Browse · Stream · View Everything</div>
   </header>
 
   <div class="input-zone">
@@ -133,48 +130,31 @@
 
 <div class="toast-container" id="toastContainer"></div>
 
-<div class="modal-backdrop" id="videoModal">
-  <div class="player-modal">
-    <div class="player-header">
-      <div class="player-title" id="videoTitle">🎬 Player</div>
-      <button class="modal-close" onclick="closeVideo()">✕</button>
+<div class="modal-backdrop" id="viewerModal">
+  <div class="viewer-modal">
+    <div class="viewer-header">
+      <div class="viewer-title" id="viewerTitle">👁️ Viewer</div>
+      <button class="modal-close" onclick="closeViewer()">✕</button>
     </div>
     
-    <div class="player-body">
-      <video id="nativePlayer" controls preload="metadata" playsinline></video>
-      
-      <div id="wasmContainer">
+    <div class="viewer-body" id="viewerBody">
+      <div class="viewer-loading" id="viewerLoading" style="display:none;">
         <div class="spinner"></div>
-        <div style="font-size: 0.9rem; font-weight: 600; color: var(--text); margin-bottom: 0.5rem;">Connecting WASM Engine...</div>
-        <div style="font-size: 0.75rem;">Initializing FFmpeg/OGV decoders via WebAssembly.<br>This may take a moment depending on your CPU.</div>
+        <div id="loadingText">Processing & Rendering File...</div>
       </div>
+      
+      <div id="renderContainer" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center;"></div>
     </div>
 
-    <div class="player-controls-pro">
-      <div class="pro-warning" id="codecWarning">
-        💡 <b>Note:</b> Agar video me screen black hai aur sirf aawaz aa rahi hai (HEVC format), toh aage ka <b>Pro Mode</b> ON karein ya file download karke VLC me chalayein.
-      </div>
-      
-      <div class="pro-tools">
-        <div class="select-wrapper">
-          <select class="custom-select" id="audioTrackSelect" disabled>
-            <option value="0">Track 1 (Default)</option>
-            <option value="1">Track 2 (Dual Audio)</option>
-          </select>
-        </div>
-
-        <label class="toggle-wrapper">
-          <input type="checkbox" id="wasmToggle" style="display:none;" onchange="toggleWasmMode()">
-          <div class="toggle-switch"></div>
-          🚀 WASM Pro Mode
-        </label>
-      </div>
+    <div class="viewer-footer">
+      <div id="viewerInfo">Supported Formats: Video, Audio, Images, PDF, Excel, Word</div>
+      <button class="btn btn-sm btn-download" id="viewerDownloadBtn" style="display:none;">⬇ Download Native</button>
     </div>
   </div>
 </div>
 
 <script>
-// ─── SW Registration ───
+// ─── Service Worker Setup ───
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').then(reg => {
         navigator.serviceWorker.addEventListener('controllerchange', () => { window.location.reload(); });
@@ -184,26 +164,44 @@ if ('serviceWorker' in navigator) {
 function registerStreamSW(id, payload) {
     return new Promise((resolve, reject) => {
         if (!navigator.serviceWorker.controller) {
-            reject(new Error("Service Worker active nahi hai. Page reload karein."));
+            reject(new Error("Service Worker is not active. Reload page."));
             return;
         }
         const channel = new MessageChannel();
-        channel.port1.onmessage = (event) => { if(event.data && event.data.status === 'ok') resolve(); };
+        channel.port1.onmessage = (e) => { if(e.data && e.data.status === 'ok') resolve(); };
         navigator.serviceWorker.controller.postMessage({ type: 'REGISTER_STREAM', id: id, payload: payload }, [channel.port2]);
         setTimeout(resolve, 800); 
     });
 }
 
-// ─── Utils & ZIP Core ───
-const VIDEO_EXT = ['mp4','webm','mkv','avi','mov','m4v','ts','wmv'];
-const AUDIO_EXT = ['mp3','wav','ogg','flac','m4a'];
+// ─── File Extensions & Icons ───
+const EXT = {
+    VIDEO: ['mp4','webm','mkv','avi','mov','ts'],
+    AUDIO: ['mp3','wav','ogg','flac','m4a'],
+    IMAGE: ['jpg','jpeg','png','gif','webp','svg'],
+    OFFICE: ['xlsx','csv','docx'],
+    PDF: ['pdf']
+};
+
 function getExt(name) { return (name.split('.').pop() || '').toLowerCase(); }
-function getIcon(name) { const ext = getExt(name); if(VIDEO_EXT.includes(ext)) return '🎬'; if(AUDIO_EXT.includes(ext)) return '🎵'; return '📦'; }
-function isVideo(name) { return VIDEO_EXT.includes(getExt(name)); }
+function getIcon(name) { 
+    const ext = getExt(name); 
+    if(EXT.VIDEO.includes(ext)) return '🎬'; 
+    if(EXT.AUDIO.includes(ext)) return '🎵'; 
+    if(EXT.IMAGE.includes(ext)) return '🖼️'; 
+    if(EXT.PDF.includes(ext)) return '📄'; 
+    if(EXT.OFFICE.includes(ext)) return '📊'; 
+    return '📦'; 
+}
+function canView(name) {
+    const ext = getExt(name);
+    return Object.values(EXT).some(arr => arr.includes(ext));
+}
 function formatSize(bytes) { if (!bytes) return '—'; const u = ['B','KB','MB','GB']; let i=0; while(bytes>=1024 && i<3){bytes/=1024; i++;} return bytes.toFixed(1) + ' ' + u[i]; }
 
 let zipUrl = ''; let zipSize = 0; let allFiles = [];
 
+// ─── ZIP Parser Logic ───
 async function fetchRange(url, start, end) {
   const res = await fetch(url, { headers: { 'Range': `bytes=${start}-${end}` } });
   if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
@@ -220,13 +218,13 @@ async function loadZip() {
   if (!url) { showToast('❌ Error: URL is required!'); return; }
   zipUrl = url; 
   document.getElementById('explorer').classList.remove('show');
-  showToast('🔄 ZIP Data load ho raha hai...', 2000);
+  showToast('🔄 Reading ZIP Headers...', 2000);
   
   try {
     const initRes = await fetch(zipUrl, { headers: { 'Range': 'bytes=0-0' } });
-    if (!initRes.ok) throw new Error("Connection Error. Proxy/CORS blocked.");
+    if (!initRes.ok) throw new Error("CORS or Proxy blocked the connection.");
     const cr = initRes.headers.get('content-range');
-    if(!cr) throw new Error("Server pe Range support nahi hai.");
+    if(!cr) throw new Error("Server does not support Range Requests.");
     
     zipSize = parseInt(cr.split('/').pop(), 10);
     const tailSize = Math.min(65536 + 100, zipSize);
@@ -235,7 +233,7 @@ async function loadZip() {
     
     let eocdOff = -1;
     for (let i = tailDv.byteLength - 22; i >= 0; i--) { if (tailDv.getUint32(i, true) === 0x06054b50) { eocdOff = i; break; } }
-    if (eocdOff === -1) throw new Error('Invalid ZIP format.');
+    if (eocdOff === -1) throw new Error('Invalid ZIP structure.');
 
     let cdSize = u32(tailDv, eocdOff + 12); let cdOffset = u32(tailDv, eocdOff + 16);
     const locOff = eocdOff - 20;
@@ -280,8 +278,8 @@ async function loadZip() {
     document.getElementById('statusBar').style.display = 'flex';
     renderFiles(allFiles);
     document.getElementById('explorer').classList.add('show');
-    showToast('✅ ZIP loaded successfully!', 3000);
-  } catch(e) { showToast(`❌ Error: ${e.message}`); }
+    showToast('✅ ZIP Index Loaded!', 3000);
+  } catch(e) { showToast(`❌ Fetch Error: ${e.message}`); }
 }
 
 async function prepareFileData(f) {
@@ -292,101 +290,130 @@ async function prepareFileData(f) {
     return f;
 }
 
-// ─── Native Download Trigger (Clean) ───
+// ─── Native Download Trigger ───
 async function downloadFile(path) {
   const f = allFiles.find(file => file.path === path); if (!f) return;
-  showToast(`🚀 "${f.name}" ki download browser ko bhej di gayi hai...`);
-  
+  showToast(`🚀 Sending "${f.name}" to browser downloads...`);
   try {
       await prepareFileData(f);
       const id = 'dl_' + Date.now();
       await registerStreamSW(id, { zipUrl, compression: f.compression, size: f.size, dataStart: f.dataStart, dataEnd: f.dataEnd, name: f.name });
-      
-      const dlUrl = window.location.pathname + `?sw_stream=${id}&dl=1`;
       const iframe = document.createElement('iframe');
       iframe.style.display = 'none';
-      iframe.src = dlUrl;
+      iframe.src = window.location.pathname + `?sw_stream=${id}&dl=1`;
       document.body.appendChild(iframe);
-      
-      // Cleanup
       setTimeout(() => { if (document.body.contains(iframe)) document.body.removeChild(iframe); }, 15000);
-  } catch(e) {
-      showToast(`❌ Download Error: ${e.message}`);
-  }
+  } catch(e) { showToast(`❌ Error: ${e.message}`); }
 }
 
-// ─── Advanced Video Player ───
-let currentStreamUrl = "";
+// ─── Dynamic Script Loader for Client-Side Rendering ───
+function loadScript(src) {
+    return new Promise((resolve, reject) => {
+        if (document.querySelector(`script[src="${src}"]`)) return resolve();
+        const s = document.createElement('script');
+        s.src = src; s.onload = resolve; s.onerror = reject;
+        document.head.appendChild(s);
+    });
+}
 
-async function playVideo(path) {
+// ─── Universal Viewer Logic ───
+async function viewFile(path) {
   const f = allFiles.find(file => file.path === path); if (!f) return;
-  closeVideo();
-  document.getElementById('videoTitle').textContent = `🎬 ${f.name}`;
-  document.getElementById('videoModal').classList.add('show');
+  
+  const container = document.getElementById('renderContainer');
+  const loading = document.getElementById('viewerLoading');
+  const title = document.getElementById('viewerTitle');
+  const dlBtn = document.getElementById('viewerDownloadBtn');
+  
+  container.innerHTML = '';
+  title.innerHTML = `${getIcon(f.name)} ${f.name}`;
+  document.getElementById('viewerModal').classList.add('show');
+  loading.style.display = 'flex';
+  
+  dlBtn.style.display = 'block';
+  dlBtn.onclick = () => downloadFile(f.path);
 
   try {
       await prepareFileData(f);
       const streamId = 'vid_' + Date.now();
       await registerStreamSW(streamId, { zipUrl, compression: f.compression, size: f.size, dataStart: f.dataStart, dataEnd: f.dataEnd, name: f.name });
+      const streamUrl = window.location.pathname + `?sw_stream=${streamId}`;
 
-      currentStreamUrl = window.location.pathname + `?sw_stream=${streamId}`;
-      const nativePlayer = document.getElementById('nativePlayer');
+      const ext = f.ext;
+
+      // 1. VIDEO
+      if (EXT.VIDEO.includes(ext)) {
+          container.innerHTML = `<video controls playsinline preload="auto"><source src="${streamUrl}" type="${getMimeType(f.name)}"></video>`;
+          const vid = container.querySelector('video');
+          vid.oncanplay = () => loading.style.display = 'none';
+          vid.onerror = () => {
+              loading.style.display = 'none';
+              container.innerHTML = `<div style="color:var(--danger); text-align:center;">⚠️ Browser Cannot Decode Video (Likely HEVC/H.265).<br>Please use the Download button below and play in VLC.</div>`;
+          };
+      } 
+      // 2. AUDIO
+      else if (EXT.AUDIO.includes(ext)) {
+          container.innerHTML = `<div style="text-align:center; width:100%;"><div style="font-size:4rem; margin-bottom:2rem;">🎵</div><audio controls autoplay style="width:80%; max-width:500px;"><source src="${streamUrl}" type="${getMimeType(f.name)}"></audio></div>`;
+          loading.style.display = 'none';
+      }
+      // 3. IMAGE
+      else if (EXT.IMAGE.includes(ext)) {
+          container.innerHTML = `<img src="${streamUrl}" class="img-viewer" alt="image">`;
+          container.querySelector('img').onload = () => loading.style.display = 'none';
+      }
+      // 4. PDF
+      else if (EXT.PDF.includes(ext)) {
+          container.innerHTML = `<iframe src="${streamUrl}" class="pdf-viewer"></iframe>`;
+          loading.style.display = 'none';
+      }
+      // 5. MS OFFICE (Client-Side Render)
+      else if (EXT.OFFICE.includes(ext)) {
+          document.getElementById('loadingText').textContent = "Downloading & Parsing Document...";
+          const res = await fetch(streamUrl);
+          const arrayBuffer = await res.arrayBuffer();
+          
+          container.innerHTML = `<div class="office-container"><div class="office-doc" id="officeDocArea"></div></div>`;
+          const docArea = document.getElementById('officeDocArea');
+
+          if (ext === 'xlsx' || ext === 'csv') {
+              document.getElementById('loadingText').textContent = "Rendering Excel Sheet...";
+              await loadScript('https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js');
+              const wb = XLSX.read(arrayBuffer, {type: 'array'});
+              const ws = wb.Sheets[wb.SheetNames[0]]; // Render first sheet
+              docArea.innerHTML = XLSX.utils.sheet_to_html(ws);
+          } 
+          else if (ext === 'docx') {
+              document.getElementById('loadingText').textContent = "Rendering Word Document...";
+              await loadScript('https://cdn.jsdelivr.net/npm/jszip/dist/jszip.min.js');
+              await loadScript('https://cdn.jsdelivr.net/npm/docx-preview/dist/docx-preview.min.js');
+              await docx.renderAsync(arrayBuffer, docArea);
+          }
+          loading.style.display = 'none';
+      }
+
+      document.getElementById('viewerInfo').textContent = `Format: ${ext.toUpperCase()} | Size: ${formatSize(f.size)}`;
       
-      nativePlayer.src = currentStreamUrl;
-      nativePlayer.play().catch(() => {});
   } catch(e) {
-      showToast(`❌ Player Error: ${e.message}`);
+      loading.style.display = 'none';
+      container.innerHTML = `<div style="color:var(--danger)">❌ Viewer Error: ${e.message}</div>`;
   }
 }
 
-function closeVideo() { 
-  const p = document.getElementById('nativePlayer'); p.pause(); p.src = ""; 
-  document.getElementById('videoModal').classList.remove('show');
-  // Reset Toggle
-  document.getElementById('wasmToggle').checked = false;
-  toggleWasmMode();
-}
-
-function toggleWasmMode() {
-    const isWasm = document.getElementById('wasmToggle').checked;
-    const nativePlayer = document.getElementById('nativePlayer');
-    const wasmContainer = document.getElementById('wasmContainer');
-    const audioSelect = document.getElementById('audioTrackSelect');
-    const warningTxt = document.getElementById('codecWarning');
-
-    if(isWasm) {
-        // Switch to Pro WASM Mode
-        nativePlayer.pause();
-        nativePlayer.style.display = 'none';
-        wasmContainer.style.display = 'flex';
-        audioSelect.disabled = false;
-        warningTxt.innerHTML = '⚡ <b>WASM Mode Active:</b> Software decoder inject ho raha hai... (Heavy CPU Usage)';
-        
-        // Simulation of WASM loading (In real environment, ogv.js or libmpv module injection happens here)
-        setTimeout(() => {
-            if(document.getElementById('wasmToggle').checked) {
-                wasmContainer.innerHTML = `<div style="color:var(--accent); font-weight:600;">✅ Decoder Ready!</div><div style="font-size:0.8rem; margin-top:5px;">Parsing Matroska/HEVC chunks...</div>`;
-                // Hook actual WASM instance to 'currentStreamUrl' here
-            }
-        }, 2000);
-    } else {
-        // Revert to Normal Mode
-        wasmContainer.style.display = 'none';
-        nativePlayer.style.display = 'block';
-        audioSelect.disabled = true;
-        warningTxt.innerHTML = '💡 <b>Note:</b> Agar video me screen black hai aur sirf aawaz aa rahi hai (HEVC format), toh aage ka <b>Pro Mode</b> ON karein ya file download karke VLC me chalayein.';
-        
-        // Restore WASM container UI state
-        wasmContainer.innerHTML = `<div class="spinner"></div><div style="font-size: 0.9rem; font-weight: 600; color: var(--text); margin-bottom: 0.5rem;">Connecting WASM Engine...</div><div style="font-size: 0.75rem;">Initializing FFmpeg/OGV decoders via WebAssembly.<br>This may take a moment depending on your CPU.</div>`;
-        
-        if (currentStreamUrl && nativePlayer.src !== currentStreamUrl) {
-            nativePlayer.src = currentStreamUrl;
-            nativePlayer.play().catch(()=>{});
-        }
-    }
+function closeViewer() { 
+  document.getElementById('renderContainer').innerHTML = ''; // Destroy elements (stops video/audio)
+  document.getElementById('viewerModal').classList.remove('show');
 }
 
 // ─── UI Helpers ───
+function getMimeType(name) {
+    const ext = name.split('.').pop().toLowerCase();
+    const map = {
+        'mp4': 'video/mp4', 'mkv': 'video/mp4', 'avi': 'video/mp4', 'webm': 'video/webm',
+        'mp3': 'audio/mpeg', 'ogg': 'audio/ogg', 'wav': 'audio/wav'
+    };
+    return map[ext] || '';
+}
+
 function escHtml(s) { return s.replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
 function filterFiles() { const q = document.getElementById('searchInput').value.toLowerCase(); renderFiles(allFiles.filter(f => f.path.toLowerCase().includes(q))); }
 
@@ -395,11 +422,11 @@ function renderFiles(files) {
   if (!files.length) { list.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--muted);font-size:0.85rem;">No files found</div>'; return; }
   list.innerHTML = files.map(f => `
     <div class="file-item">
-      <div style="font-size:1.2rem;">${getIcon(f.name)}</div>
+      <div style="font-size:1.2rem; min-width:30px; text-align:center;">${getIcon(f.name)}</div>
       <div class="file-info"><div class="file-name" title="${f.path}">${f.name}</div><div class="file-path">${f.folder}</div></div>
       <div class="file-size">${formatSize(f.size)}</div>
       <div class="file-actions">
-        ${isVideo(f.name) ? `<button class="btn btn-sm btn-play" onclick="playVideo('${escHtml(f.path)}')">▶ Play</button>` : ''}
+        ${canView(f.name) ? `<button class="btn btn-sm btn-view" onclick="viewFile('${escHtml(f.path)}')">👁️ View</button>` : ''}
         <button class="btn btn-sm btn-download" onclick="downloadFile('${escHtml(f.path)}')">⬇ Download</button>
       </div>
     </div>`).join('');
@@ -411,11 +438,7 @@ function showToast(msg, duration = 4000) {
     toast.className = 'toast';
     toast.innerHTML = msg;
     container.appendChild(toast);
-    
-    setTimeout(() => {
-        toast.classList.add('fadeOut');
-        setTimeout(() => toast.remove(), 400);
-    }, duration);
+    setTimeout(() => { toast.classList.add('fadeOut'); setTimeout(() => toast.remove(), 400); }, duration);
 }
 
 document.getElementById('zipUrl').addEventListener('keydown', e => { if (e.key === 'Enter') loadZip(); });
