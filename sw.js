@@ -47,22 +47,70 @@ async function handleStreamRequest(request, f, isDownload) {
     }
 
     try {
-        const fetchHeaders = new Headers();
+        // Calculate absolute byte positions in the ZIP file
+        let actualStart = f.compression === 0 ? f.dataStart + start : f.dataStart;
+        let actualEnd = f.compression === 0 ? f.dataStart + end : f.dataEnd;
+
+        // ✨ THE 2GB LIMIT FIX: Resilient Auto-Reconnecting Stream
+        const resilientStream = new ReadableStream({
+            async start(controller) {
+                let currentOffset = actualStart;
+                let retryCount = 0;
+
+                async function fetchNextChunk() {
+                    // Check if we reached the end of the required data
+                    if (currentOffset > actualEnd) {
+                        try { controller.close(); } catch(e) {}
+                        return;
+                    }
+
+                    try {
+                        const headers = new Headers();
+                        headers.set('Range', `bytes=${currentOffset}-${actualEnd}`);
+                        const res = await fetch(f.zipUrl, { headers });
+                        
+                        if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+                        
+                        const reader = res.body.getReader();
+                        retryCount = 0; // Reset retries on successful connection
+
+                        while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) break; 
+                            
+                            controller.enqueue(value);
+                            currentOffset += value.byteLength;
+                        }
+                        
+                        // If connection drops before finishing (the 2GB cutoff), reconnect silently!
+                        if (currentOffset <= actualEnd) {
+                            fetchNextChunk();
+                        } else {
+                            try { controller.close(); } catch(e) {}
+                        }
+                    } catch (e) {
+                        retryCount++;
+                        if (retryCount > 10) {
+                            // Give up only if network is completely dead after 10 tries
+                            try { controller.error(e); } catch(err) {}
+                            return;
+                        }
+                        // Short delay before retrying
+                        setTimeout(fetchNextChunk, 1000);
+                    }
+                }
+                fetchNextChunk();
+            },
+            cancel(reason) {
+                // Allows the browser to cleanly close the stream if the user cancels download/playback
+            }
+        });
+
+        let finalStream = resilientStream;
         
-        // STUTTER FIX: Perfect mapping for 'Stored' (0% compression) media files
-        if (f.compression === 0) {
-            fetchHeaders.set('Range', `bytes=${f.dataStart + start}-${f.dataStart + end}`);
-        } else {
-            // Deflated files must be fetched entirely to decompress properly
-            fetchHeaders.set('Range', `bytes=${f.dataStart}-${f.dataEnd}`);
-        }
-
-        const res = await fetch(f.zipUrl, { headers: fetchHeaders });
-        if (!res.ok) throw new Error(`Server rejected request. Status: ${res.status}`);
-
-        let stream = res.body;
+        // Deflated files stream through decompression engine
         if (f.compression === 8) {
-            stream = stream.pipeThrough(new DecompressionStream('deflate-raw'));
+            finalStream = finalStream.pipeThrough(new DecompressionStream('deflate-raw'));
         }
 
         const responseHeaders = new Headers();
@@ -72,7 +120,7 @@ async function handleStreamRequest(request, f, isDownload) {
             responseHeaders.set('Content-Disposition', `attachment; filename="${encodeURIComponent(f.name)}"`);
             responseHeaders.set('Content-Type', 'application/octet-stream');
             responseHeaders.set('Content-Length', f.size.toString());
-            return new Response(stream, { status: 200, headers: responseHeaders });
+            return new Response(finalStream, { status: 200, headers: responseHeaders });
         } else {
             responseHeaders.set('Content-Type', getMimeType(f.name));
             
@@ -82,7 +130,7 @@ async function handleStreamRequest(request, f, isDownload) {
                 if (rangeHeader) {
                     responseHeaders.set('Content-Range', `bytes ${start}-${end}/${f.size}`);
                     responseHeaders.set('Content-Length', (end - start + 1).toString());
-                    return new Response(stream, { status: 206, headers: responseHeaders });
+                    return new Response(finalStream, { status: 206, headers: responseHeaders });
                 }
             } else {
                 // If compressed, seeking is fundamentally broken. Stream as a whole chunk.
@@ -90,7 +138,7 @@ async function handleStreamRequest(request, f, isDownload) {
             }
             
             responseHeaders.set('Content-Length', f.size.toString());
-            return new Response(stream, { status: 200, headers: responseHeaders });
+            return new Response(finalStream, { status: 200, headers: responseHeaders });
         }
     } catch(e) {
         console.error("SW Fetch Error:", e);
