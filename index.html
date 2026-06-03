@@ -73,18 +73,32 @@
   
   .viewer-body { position: relative; flex: 1; background: #050505; display: flex; align-items: center; justify-content: center; overflow: hidden; }
   
-  /* Media Specific Styles */
-  video { width: 100%; height: 100%; outline: none; background: #000; }
+  /* Media Specific Styles with GPU Acceleration Fix for Video */
+  video { 
+      width: 100%; height: 100%; outline: none; background: #000; 
+      /* STUTTER FIX: Force browser to use GPU compositing in window mode */
+      transform: translateZ(0);
+      will-change: transform;
+      backface-visibility: hidden;
+  }
   audio { width: 80%; max-width: 600px; outline: none; }
   .img-viewer { max-width: 100%; max-height: 100%; object-fit: contain; }
   .pdf-viewer { width: 100%; height: 100%; border: none; background: #fff; }
   
   /* Pro MS Office Viewer container */
-  .office-container { width: 100%; height: 100%; background: #f3f4f6; color: #111827; overflow: auto; display: flex; flex-direction: column; }
-  .office-doc { background: #fff; margin: 1.5rem auto; width: 95%; max-width: 900px; min-height: 100%; padding: 3rem; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-radius: 6px; font-family: 'Calibri', 'Arial', sans-serif; line-height: 1.5; }
+  .office-container { width: 100%; height: 100%; background: #f3f4f6; color: #111827; display: flex; flex-direction: column; overflow: hidden; }
+  .office-doc { background: #fff; margin: 1.5rem auto; width: 95%; max-width: 900px; min-height: 100%; padding: 3rem; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-radius: 6px; font-family: 'Calibri', 'Arial', sans-serif; line-height: 1.5; overflow: auto; }
   
-  /* MS Excel UI Simulation */
-  .excel-wrapper { width: 100%; height: 100%; overflow: auto; background: #fff; }
+  /* MS Excel UI Simulation with Tabs */
+  .excel-wrapper { flex: 1; width: 100%; overflow: auto; background: #fff; }
+  
+  /* Excel Tabs System */
+  .excel-tabs { display: flex; gap: 4px; background: #f3f4f6; padding: 10px 10px 0 10px; border-bottom: 1px solid #d4d4d4; overflow-x: auto; flex-shrink: 0; }
+  .excel-tab { padding: 6px 16px; background: #e5e7eb; border: 1px solid #d4d4d4; border-bottom: none; border-radius: 6px 6px 0 0; cursor: pointer; font-family: 'Calibri', sans-serif; font-size: 0.85rem; font-weight: 500; color: #4b5563; white-space: nowrap; transition: background 0.2s; }
+  .excel-tab:hover { background: #d1d5db; }
+  .excel-tab.active { background: #fff; font-weight: bold; color: #10b981; border-top: 3px solid #10b981; }
+  
+  /* Excel Data Grid */
   table.excel-table { width: max-content; min-width: 100%; border-collapse: collapse; font-family: 'Calibri', sans-serif; font-size: 0.85rem; }
   table.excel-table th, table.excel-table td { border: 1px solid #d4d4d4; padding: 4px 8px; white-space: nowrap; color: #000; }
   table.excel-table tr:first-child { background: #f3f3f3; font-weight: bold; text-align: center; position: sticky; top: 0; box-shadow: 0 1px 0 #d4d4d4; z-index: 10; }
@@ -151,7 +165,7 @@
     </div>
 
     <div class="viewer-footer">
-      <div id="viewerInfo" style="display: flex; gap: 10px; align-items: center;"></div>
+      <div id="viewerInfo" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;"></div>
       <button class="btn btn-sm btn-download" id="viewerDownloadBtn" style="display:none;">⬇ Download File</button>
     </div>
   </div>
@@ -328,7 +342,7 @@ async function viewFile(path) {
   const info = document.getElementById('viewerInfo');
   
   container.innerHTML = '';
-  info.innerHTML = `<span>Format: ${f.ext.toUpperCase()}</span> <span>Size: ${formatSize(f.size)}</span>`;
+  info.innerHTML = `<span class="badge">Format: ${f.ext.toUpperCase()}</span> <span class="badge">Size: ${formatSize(f.size)}</span>`;
   title.innerHTML = `${getIcon(f.name)} ${f.name}`;
   document.getElementById('viewerModal').classList.add('show');
   loading.style.display = 'flex';
@@ -343,17 +357,15 @@ async function viewFile(path) {
       const streamUrl = window.location.pathname + `?sw_stream=${streamId}`;
       const ext = f.ext;
 
-      // Warn if video is compressed
       if (EXT.VIDEO.includes(ext) && f.compression !== 0) {
           info.innerHTML += ` <span class="badge warn">⚠️ Compressed Video (May stutter)</span>`;
       }
-
-      // Add XLSM Warning
       if (ext === 'xlsm') {
-          info.innerHTML += ` <span class="badge warn" style="margin-left:auto;">🔒 Macros Disabled (View Only)</span>`;
+          info.innerHTML += ` <span class="badge warn">🔒 Macros Disabled (View Only)</span>`;
       }
 
       if (EXT.VIDEO.includes(ext)) {
+          // GPU Accelerated Video Element
           container.innerHTML = `<video controls playsinline preload="auto"><source src="${streamUrl}"></video>`;
           const vid = container.querySelector('video');
           vid.oncanplay = () => loading.style.display = 'none';
@@ -380,24 +392,40 @@ async function viewFile(path) {
           const arrayBuffer = await res.arrayBuffer();
           
           if (['xls', 'xlsx', 'xlsm', 'csv'].includes(ext)) {
-              document.getElementById('loadingText').textContent = "Rendering Excel Grid...";
+              document.getElementById('loadingText').textContent = "Rendering Excel Sheets...";
               await loadScript('https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js');
+              
+              // Parse Entire Workbook
               const wb = XLSX.read(arrayBuffer, {type: 'array'});
-              const ws = wb.Sheets[wb.SheetNames[0]];
+              window.currentExcelWb = wb; // Save globally for tab switching
               
-              // Custom Pro MS Excel UI rendering
-              const htmlStr = XLSX.utils.sheet_to_html(ws, { id: "rendered-excel" });
-              container.innerHTML = `<div class="excel-wrapper">${htmlStr}</div>`;
+              // Generate Tabs HTML for Multiple Sheets
+              let tabsHtml = '<div class="excel-tabs">';
+              wb.SheetNames.forEach((sheetName, index) => {
+                  tabsHtml += `<div class="excel-tab ${index === 0 ? 'active' : ''}" onclick="switchExcelSheet('${escHtml(sheetName)}', this)">${sheetName}</div>`;
+              });
+              tabsHtml += '</div>';
               
-              // Apply styling
-              const table = container.querySelector('#rendered-excel');
+              // Render First Sheet Default
+              const firstSheet = wb.Sheets[wb.SheetNames[0]];
+              const tableHtml = XLSX.utils.sheet_to_html(firstSheet, { id: "rendered-excel" });
+              
+              container.innerHTML = `
+                <div class="office-container">
+                    ${tabsHtml}
+                    <div class="excel-wrapper" id="excelDataContainer">${tableHtml}</div>
+                </div>
+              `;
+              
+              // Apply CSS
+              const table = document.getElementById('rendered-excel');
               if(table) table.className = "excel-table";
           } 
           else if (['doc', 'docx'].includes(ext)) {
               document.getElementById('loadingText').textContent = "Rendering Word Document...";
               await loadScript('https://cdn.jsdelivr.net/npm/jszip/dist/jszip.min.js');
               await loadScript('https://cdn.jsdelivr.net/npm/docx-preview/dist/docx-preview.min.js');
-              container.innerHTML = `<div class="office-container"><div class="office-doc" id="officeDocArea"></div></div>`;
+              container.innerHTML = `<div class="office-container" style="overflow:auto;"><div class="office-doc" id="officeDocArea"></div></div>`;
               try { await docx.renderAsync(arrayBuffer, document.getElementById('officeDocArea')); }
               catch { container.innerHTML = `<div style="color:#fff;">Word render failed. Please download the file.</div>`; }
           }
@@ -413,9 +441,28 @@ async function viewFile(path) {
   }
 }
 
+// ─── Excel Sheet Switcher Logic ───
+window.switchExcelSheet = function(sheetName, tabElement) {
+    if(!window.currentExcelWb) return;
+    
+    // Update Active Tab UI
+    document.querySelectorAll('.excel-tab').forEach(tab => tab.classList.remove('active'));
+    tabElement.classList.add('active');
+    
+    // Render Selected Sheet
+    const ws = window.currentExcelWb.Sheets[sheetName];
+    const tableHtml = XLSX.utils.sheet_to_html(ws, { id: "rendered-excel" });
+    document.getElementById('excelDataContainer').innerHTML = tableHtml;
+    
+    // Reapply CSS
+    const table = document.getElementById('rendered-excel');
+    if(table) table.className = "excel-table";
+};
+
 function closeViewer() { 
   document.getElementById('renderContainer').innerHTML = '';
   document.getElementById('viewerModal').classList.remove('show');
+  window.currentExcelWb = null; // Clear memory
 }
 
 // ─── Global UI ───
