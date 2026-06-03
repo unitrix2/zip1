@@ -20,7 +20,6 @@ self.addEventListener('message', event => {
 self.addEventListener('fetch', event => {
     const url = new URL(event.request.url);
     
-    // Intercepting via Query Params to ensure strict scope
     if (url.searchParams.has('sw_stream')) {
         const id = url.searchParams.get('sw_stream');
         const fileData = activeStreams.get(id);
@@ -38,7 +37,8 @@ async function handleStreamRequest(request, f, isDownload) {
     let start = 0;
     let end = f.size - 1;
 
-    if (f.compression === 0 && rangeHeader) {
+    // Parse requested byte range from the browser's video player
+    if (rangeHeader) {
         const match = rangeHeader.match(/bytes=(\d+)-(\d*)/);
         if (match) {
             start = parseInt(match[1], 10);
@@ -46,15 +46,14 @@ async function handleStreamRequest(request, f, isDownload) {
         }
     }
 
-    let fetchStart = f.compression === 0 ? (f.dataStart + start) : f.dataStart;
-    
     try {
-        // ANTI-STUTTER FIX: Fetch open-ended range instead of exact bytes.
-        // This prevents Cloudflare from throttling multiple small requests and lets the browser buffer natively.
         const fetchHeaders = new Headers();
+        
+        // STUTTER FIX: Perfect mapping for 'Stored' (0% compression) media files
         if (f.compression === 0) {
-            fetchHeaders.set('Range', `bytes=${fetchStart}-`);
+            fetchHeaders.set('Range', `bytes=${f.dataStart + start}-${f.dataStart + end}`);
         } else {
+            // Deflated files must be fetched entirely to decompress properly
             fetchHeaders.set('Range', `bytes=${f.dataStart}-${f.dataEnd}`);
         }
 
@@ -76,18 +75,22 @@ async function handleStreamRequest(request, f, isDownload) {
             return new Response(stream, { status: 200, headers: responseHeaders });
         } else {
             responseHeaders.set('Content-Type', getMimeType(f.name));
-            responseHeaders.set('Accept-Ranges', f.compression === 0 ? 'bytes' : 'none');
             
-            if (f.compression === 0 && rangeHeader) {
-                // We fake the exact chunk response to satisfy the HTML5 player, 
-                // but the underlying stream is continuously buffering.
-                responseHeaders.set('Content-Range', `bytes ${start}-${end}/${f.size}`);
-                responseHeaders.set('Content-Length', (end - start + 1).toString());
-                return new Response(stream, { status: 206, headers: responseHeaders });
+            if (f.compression === 0) {
+                // If stored, we perfectly support seeking
+                responseHeaders.set('Accept-Ranges', 'bytes');
+                if (rangeHeader) {
+                    responseHeaders.set('Content-Range', `bytes ${start}-${end}/${f.size}`);
+                    responseHeaders.set('Content-Length', (end - start + 1).toString());
+                    return new Response(stream, { status: 206, headers: responseHeaders });
+                }
             } else {
-                responseHeaders.set('Content-Length', f.size.toString());
-                return new Response(stream, { status: 200, headers: responseHeaders });
+                // If compressed, seeking is fundamentally broken. Stream as a whole chunk.
+                responseHeaders.set('Accept-Ranges', 'none');
             }
+            
+            responseHeaders.set('Content-Length', f.size.toString());
+            return new Response(stream, { status: 200, headers: responseHeaders });
         }
     } catch(e) {
         console.error("SW Fetch Error:", e);
@@ -103,8 +106,13 @@ function getMimeType(name) {
         'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png', 'gif': 'image/gif', 'webp': 'image/webp',
         'pdf': 'application/pdf',
         'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'xls': 'application/vnd.ms-excel',
+        'xlsm': 'application/vnd.ms-excel.sheet.macroEnabled.12',
         'csv': 'text/csv',
-        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'doc': 'application/msword',
+        'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'ppt': 'application/vnd.ms-powerpoint'
     };
     return map[ext] || 'application/octet-stream';
 }
