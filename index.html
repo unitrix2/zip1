@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZIP Explorer Pro (Zero-RAM + Cloudflare Drive Edition)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;700;800&display=swap');
+
+  :root {
+    --bg: #0a0a0f; --surface: #111118; --surface2: #1a1a24; --border: #252535;
+    --accent: #00e5ff; --accent2: #7c3aed; --accent3: #10b981;
+    --warn: #f59e0b; --danger: #ef4444; --text: #e2e8f0; --muted: #64748b;
+    --font-mono: 'JetBrains Mono', monospace; --font-display: 'Syne', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-mono); min-height: 100vh; overflow-x: hidden; }
+  body::before { content: ''; position: fixed; inset: 0; background-image: linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px); background-size: 40px 40px; pointer-events: none; z-index: 0; }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; position: relative; z-index: 1; }
+  header { text-align: center; margin-bottom: 3rem; animation: fadeDown 0.6s ease; }
+  .logo { font-family: var(--font-display); font-size: 2.6rem; font-weight: 800; background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 60%, var(--accent3) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -1px; line-height: 1; }
+  .tagline { color: var(--muted); font-size: 0.78rem; margin-top: 0.5rem; letter-spacing: 3px; text-transform: uppercase; }
+
+  .input-zone { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 2rem; position: relative; overflow: hidden; }
+  .input-zone::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--accent2), var(--accent), var(--accent3)); }
+  .input-row { display: flex; gap: 0.75rem; align-items: center; }
+  .url-input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 0.85rem 1.1rem; color: var(--text); font-family: var(--font-mono); font-size: 0.85rem; outline: none; }
+  .url-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,229,255,0.1); }
+
+  .btn { padding: 0.85rem 1.5rem; border-radius: 10px; border: none; cursor: pointer; font-family: var(--font-mono); font-size: 0.82rem; font-weight: 500; transition: all 0.2s; white-space: nowrap; }
+  .btn-primary { background: linear-gradient(135deg, var(--accent2), var(--accent)); color: #fff; }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,229,255,0.25); }
+  .btn-sm { padding: 0.45rem 0.9rem; font-size: 0.75rem; border-radius: 7px; }
+  .btn-download { background: rgba(0,229,255,0.1); color: var(--accent); border: 1px solid rgba(0,229,255,0.25); }
+  .btn-download:hover { background: rgba(0,229,255,0.2); box-shadow: 0 0 12px rgba(0,229,255,0.2); }
+  .btn-play { background: rgba(16,185,129,0.1); color: var(--accent3); border: 1px solid rgba(16,185,129,0.25); }
+  .btn-play:hover { background: rgba(16,185,129,0.2); box-shadow: 0 0 12px rgba(16,185,129,0.2); }
+  .btn-cancel-task { background: rgba(239,68,68,0.15); color: var(--danger); border: 1px solid rgba(239,68,68,0.3); font-size: 0.68rem; padding: 0.2rem 0.5rem; border-radius: 4px; cursor: pointer; transition: all 0.15s; }
+  .btn-cancel-task:hover { background: var(--danger); color: #fff; }
+
+  .status-bar { display: flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap; align-items: center; }
+  .badge { font-size: 0.72rem; padding: 0.25rem 0.65rem; border-radius: 20px; background: var(--surface2); border: 1px solid var(--border); color: var(--muted); }
+  .badge.accent { color: var(--accent); border-color: rgba(0,229,255,0.3); background: rgba(0,229,255,0.05); }
+
+  .loader { display: none; align-items: center; gap: 0.75rem; padding: 1.5rem; color: var(--muted); font-size: 0.82rem; }
+  .loader.active { display: flex; }
+  .spinner { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  .error-box { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); border-radius: 10px; padding: 1rem 1.25rem; color: #fca5a5; font-size: 0.82rem; display: none; margin-top: 1rem; }
+  .error-box.show { display: block; }
+
+  .explorer { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; display: none; }
+  .explorer.show { display: block; }
+  .explorer-header { padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; background: var(--surface2); }
+  .explorer-title { font-family: var(--font-display); font-size: 0.95rem; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 0.5rem; }
+  .search-input { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem 0.9rem; color: var(--text); font-family: var(--font-mono); font-size: 0.78rem; outline: none; width: 220px; }
+  .file-list { padding: 0.5rem; }
+  .file-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem 1rem; border-radius: 9px; border: 1px solid transparent; margin-bottom: 2px; }
+  .file-item:hover { background: var(--surface2); border-color: var(--border); }
+  .file-icon { font-size: 1.1rem; min-width: 22px; text-align: center; }
+  .file-info { flex: 1; min-width: 0; }
+  .file-name { font-size: 0.82rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .file-path { font-size: 0.7rem; color: var(--muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .file-size { font-size: 0.72rem; color: var(--muted); min-width: 65px; text-align: right; }
+  .file-actions { display: flex; gap: 0.4rem; }
+
+  /* Draggable Download Panel */
+  .dl-panel { position: fixed; bottom: 1.5rem; right: 1.5rem; width: 420px; max-width: calc(100vw - 2rem); background: var(--surface); border: 1px solid var(--border); border-radius: 14px; z-index: 1000; box-shadow: 0 20px 60px rgba(0,0,0,0.6); display: none; }
+  .dl-panel.show { display: block; }
+  .dl-header { padding: 0.75rem 1rem; background: var(--surface2); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; font-size: 0.78rem; font-weight: 500; cursor: move; user-select: none; }
+  .dl-close { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1rem; }
+  .dl-close:hover { color: var(--text); }
+  .dl-items { padding: 0.75rem; max-height: 40vh; overflow-y: auto; }
+  .dl-item { padding: 0.85rem; border-radius: 10px; background: var(--bg); border: 1px solid var(--border); margin-bottom: 0.5rem; }
+  .dl-item.active { border-color: rgba(0,229,255,0.3); }
+  .dl-item.done { border-color: rgba(16,185,129,0.3); }
+  .dl-item.error { border-color: rgba(239,68,68,0.3); }
+  .dl-item-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; gap: 0.5rem; }
+  .dl-item-name { font-size: 0.78rem; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+  .progress-bar-wrap { height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; margin-bottom: 0.5rem; }
+  .progress-bar { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--accent2), var(--accent)); width: 0%; transition: width 0.2s; }
+  .progress-bar.done { background: var(--accent3); }
+  .progress-bar.error { background: var(--danger); }
+  .dl-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.4rem; font-size: 0.67rem; }
+  .stat-box { background: var(--surface2); border-radius: 6px; padding: 0.3rem 0.4rem; text-align: center; }
+  .stat-label { color: var(--muted); display: block; margin-bottom: 1px; }
+  .stat-val { color: var(--accent); font-weight: 500; }
+
+  /* Video Modal */
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 1rem; display: none; backdrop-filter: blur(8px); }
+  .modal-backdrop.show { display: flex; }
+  .video-modal { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; overflow: hidden; width: 100%; max-width: 900px; box-shadow: 0 30px 80px rgba(0,0,0,0.8); }
+  .video-modal-header { padding: 0.85rem 1.25rem; background: var(--surface2); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .video-title { font-size: 0.82rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .modal-close { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text); cursor: pointer; font-size: 1.1rem; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+  .video-wrap { position: relative; background: #000; padding: 20px; display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; }
+  video, audio { width: 100%; max-height: 400px; background: #000; border-radius: 8px; outline: none; margin-bottom: 14px; border: 1px solid var(--border); display: none; }
+  .video-loading { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #000; gap: 0.75rem; color: var(--muted); font-size: 0.8rem; z-index: 5; }
+  .video-loading.hidden { display: none; }
+  .video-footer { padding: 0.75rem 1.25rem; font-size: 0.72rem; color: var(--muted); display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; background: var(--surface2); }
+  .codec-badge { padding: 0.2rem 0.55rem; border-radius: 5px; background: rgba(0,229,255,0.1); color: var(--accent); border: 1px solid rgba(0,229,255,0.2); font-size: 0.67rem; }
+  .custom-stream-box { width: 100%; background: #08080c; border: 1px dashed var(--warn); border-radius: 10px; padding: 1rem; text-align: left; }
+  .custom-stream-box input { width: 100%; padding: 10px; background: #020204; border: 1px solid var(--border); color: var(--warn); font-family: var(--font-mono); font-size: 0.75rem; border-radius: 6px; outline: none; margin-top: 8px; margin-bottom: 8px; }
+
+  @keyframes fadeDown { from { opacity:0; transform:translateY(-20px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="logo">⚡ ZIP Explorer Pro</div>
+    <div class="tagline">Browse · Stream · Download — Cloudflare Fast Edition</div>
+  </header>
+
+  <div class="input-zone">
+    <div class="input-row">
+      <input type="url" class="url-input" id="zipUrl" placeholder="Direct Google Drive / Cloudflare URL paste karein..." />
+      <button class="btn btn-primary" onclick="loadZip()">🔍 Load ZIP</button>
+    </div>
+    <div style="font-size: 0.72rem; color: var(--muted); margin-top: 0.6rem;">
+      ✅ Service Worker Active. Ab video buffer aur download 0-RAM me honge.
+    </div>
+    <div class="status-bar" id="statusBar" style="display:none">
+      <span class="badge accent" id="totalFiles"></span>
+      <span class="badge" id="totalSize"></span>
+      <span class="badge" id="zipName"></span>
+    </div>
+    <div class="loader" id="loader"><div class="spinner"></div> Structure load ho raha hai...</div>
+    <div class="error-box" id="errorBox"></div>
+  </div>
+
+  <div class="explorer" id="explorer">
+    <div class="explorer-header">
+      <div class="explorer-title">📁 <span id="explorerTitle">Files</span></div>
+      <div style="display:flex;gap:0.5rem;align-items:center;">
+        <input type="text" class="search-input" id="searchInput" placeholder="🔍 Search files..." oninput="filterFiles()" />
+      </div>
+    </div>
+    <div class="file-list" id="fileList"></div>
+  </div>
+</div>
+
+<div class="dl-panel" id="dlPanel">
+  <div class="dl-header" id="dlHeaderDrag">
+    <span>⬇ Downloads <span class="badge" id="dlQueueCount" style="margin-left:8px;">0</span></span>
+    <button class="dl-close" onclick="document.getElementById('dlPanel').classList.remove('show')">✕</button>
+  </div>
+  <div class="dl-items" id="dlItems"></div>
+</div>
+
+<div class="modal-backdrop" id="videoModal">
+  <div class="video-modal">
+    <div class="video-modal-header">
+      <div class="video-title" id="videoTitle">Video Player</div>
+      <button class="modal-close" onclick="closeVideo()">✕</button>
+    </div>
+    <div class="video-wrap">
+      <div class="video-loading" id="videoLoading">
+        <div class="spinner" style="width:32px;height:32px;border-width:3px"></div>
+        <span>Connecting Service Worker...</span>
+      </div>
+
+      <video id="videoPlayer" controls preload="metadata" playsinline></video>
+      <audio id="audioPlayer" controls preload="metadata"></audio>
+
+      <div class="custom-stream-box" style="margin-top:15px;">
+        <span style="color:var(--warn); font-size:0.8rem; font-weight:bold;">🚀 Local SW Stream Link:</span>
+        <input type="text" id="streamTargetUrl" readonly />
+        <button class="btn btn-sm btn-primary" onclick="copyStreamLink(this)" style="padding:0.35rem 0.8rem;">📋 Copy Link</button>
+      </div>
+    </div>
+    <div class="video-footer">
+      <span id="videoCodecInfo">🎬 Service Worker Streaming Active</span>
+      <span class="codec-badge" id="codecBadge">Auto</span>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── SW Registration ───
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').then(reg => {
+        navigator.serviceWorker.addEventListener('controllerchange', () => { window.location.reload(); });
+    }).catch(err => console.error('SW Error:', err));
+}
+
+// ─── Helper: Safely register stream with SW to prevent race conditions ───
+function registerStreamSW(id, payload) {
+    return new Promise((resolve, reject) => {
+        if (!navigator.serviceWorker.controller) {
+            reject(new Error("Service Worker is not active."));
+            return;
+        }
+        const channel = new MessageChannel();
+        channel.port1.onmessage = (event) => {
+            if(event.data && event.data.status === 'ok') resolve();
+            else resolve(); // Fallback resolution
+        };
+        navigator.serviceWorker.controller.postMessage(
+            { type: 'REGISTER_STREAM', id: id, payload: payload },
+            [channel.port2]
+        );
+        // Timeout in case SW is unresponsive
+        setTimeout(resolve, 1000);
+    });
+}
+
+// ─── Utils ───
+const VIDEO_EXT = ['mp4','webm','mkv','avi','mov','m4v','ogv','3gp','flv','ts','m2ts','wmv','mpg','mpeg'];
+const AUDIO_EXT = ['mp3','wav','ogg','flac','aac','m4a','opus','wma'];
+function getExt(name) { return (name.split('.').pop() || '').toLowerCase(); }
+function getIcon(name) {
+  const ext = getExt(name);
+  if (VIDEO_EXT.includes(ext)) return '🎬';
+  if (AUDIO_EXT.includes(ext)) return '🎵';
+  return '📦';
+}
+function isVideo(name) { return VIDEO_EXT.includes(getExt(name)); }
+function formatSize(bytes) {
+  if (!bytes || bytes === 0) return '—';
+  const u = ['B','KB','MB','GB']; let i = 0;
+  while (bytes >= 1024 && i < 3) { bytes /= 1024; i++; }
+  return bytes.toFixed(i > 0 ? 1 : 0) + ' ' + u[i];
+}
+function formatTime(sec) {
+  if (!isFinite(sec) || sec < 0) return '∞';
+  if (sec < 60) return Math.ceil(sec) + 's';
+  return Math.floor(sec/60) + 'm ' + (Math.ceil(sec%60)) + 's';
+}
+
+// ─── ZIP Core (NO BIGINT) ───
+let zipUrl = ''; let zipSize = 0; let allFiles = []; let downloadCount = 0;
+const activeAbortControllers = {};
+
+async function fetchRange(url, start, end) {
+  const res = await fetch(url, { headers: { 'Range': `bytes=${start}-${end}` } });
+  if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+  return new DataView(await res.arrayBuffer());
+}
+
+const u16 = (dv, o) => dv.getUint16(o, true);
+const u32 = (dv, o) => dv.getUint32(o, true);
+const u64 = (dv, o) => dv.getUint32(o + 4, true) * 0x100000000 + dv.getUint32(o, true);
+
+function safeDecode(bytes) {
+  try { return new TextDecoder('utf-8').decode(bytes); } catch { return new TextDecoder('cp437').decode(bytes); }
+}
+
+async function loadZip() {
+  const url = document.getElementById('zipUrl').value.trim();
+  if (!url) { showError('URL is required!'); return; }
+  zipUrl = url; showError('');
+  document.getElementById('loader').classList.add('active');
+  document.getElementById('explorer').classList.remove('show');
+  
+  try {
+    const initRes = await fetch(zipUrl, { headers: { 'Range': 'bytes=0-0' } });
+    if (!initRes.ok) throw new Error("Connection Error. Proxy or CORS blocked.");
+    const cr = initRes.headers.get('content-range');
+    if(!cr) throw new Error("Server ne Range support nahi kiya.");
+    
+    zipSize = parseInt(cr.split('/').pop(), 10);
+    const tailSize = Math.min(65536 + 100, zipSize);
+    const start = Math.max(0, zipSize - tailSize);
+    const tailDv = await fetchRange(zipUrl, start, zipSize - 1);
+    
+    let eocdOff = -1;
+    for (let i = tailDv.byteLength - 22; i >= 0; i--) { 
+      if (tailDv.getUint32(i, true) === 0x06054b50) { eocdOff = i; break; } 
+    }
+    if (eocdOff === -1) throw new Error('Invalid ZIP structure.');
+
+    let cdSize = u32(tailDv, eocdOff + 12); 
+    let cdOffset = u32(tailDv, eocdOff + 16);
+    
+    // Check ZIP64
+    const locOff = eocdOff - 20;
+    if (locOff >= 0 && tailDv.getUint32(locOff, true) === 0x07064b50) {
+      const eocd64Offset = u64(tailDv, locOff + 8);
+      if (eocd64Offset - start >= 0) {
+          const lOff = eocd64Offset - start;
+          cdSize = u64(tailDv, lOff + 40); 
+          cdOffset = u64(tailDv, lOff + 48);
+      }
+    }
+
+    let cdDv;
+    if (cdOffset >= start) {
+        cdDv = new DataView(tailDv.buffer, tailDv.byteOffset + (cdOffset - start), cdSize);
+    } else {
+        cdDv = await fetchRange(zipUrl, cdOffset, cdOffset + cdSize - 1);
+    }
+
+    allFiles = []; let offset = 0;
+    while (offset + 46 <= cdDv.byteLength) {
+      if (cdDv.getUint32(offset, true) !== 0x02014b50) break;
+      const comp = u16(cdDv, offset + 10); 
+      let csz = u32(cdDv, offset + 20); let sz = u32(cdDv, offset + 24);
+      const nl = u16(cdDv, offset + 28); const el = u16(cdDv, offset + 30); const cl = u16(cdDv, offset + 32);
+      let localOffset = u32(cdDv, offset + 42);
+
+      const nameBytes = new Uint8Array(cdDv.buffer, cdDv.byteOffset + offset + 46, nl);
+      const name = safeDecode(nameBytes);
+
+      if (el > 0) {
+        let eOff = offset + 46 + nl; const eEnd = eOff + el;
+        while (eOff + 4 <= eEnd) {
+          const tag = u16(cdDv, eOff); const tsz = u16(cdDv, eOff + 2);
+          if (tag === 0x0001) {
+            let p = eOff + 4;
+            if (sz === 0xFFFFFFFF) { sz = u64(cdDv, p); p += 8; }
+            if (csz === 0xFFFFFFFF) { csz = u64(cdDv, p); p += 8; }
+            if (localOffset === 0xFFFFFFFF) { localOffset = u64(cdDv, p); }
+          }
+          eOff += 4 + tsz;
+        }
+      }
+
+      if (!name.endsWith('/')) {
+        const ext = name.includes('.') ? name.split('.').pop().toLowerCase() : '';
+        allFiles.push({ path: name, name: name.split('/').pop(), folder: name.includes('/') ? name.substring(0, name.lastIndexOf('/')) : '', ext, size: sz, csize: csz, offset: localOffset, compression: comp });
+      }
+      offset += 46 + nl + el + cl;
+    }
+
+    document.getElementById('totalFiles').textContent = `📦 ${allFiles.length} files`;
+    document.getElementById('totalSize').textContent = `💾 ${formatSize(allFiles.reduce((s,f)=>s+f.size,0))}`;
+    document.getElementById('zipName').textContent = url.split('/').pop().split('?')[0];
+    document.getElementById('statusBar').style.display = 'flex';
+    renderFiles(allFiles);
+    document.getElementById('explorer').classList.add('show');
+  } catch(e) { showError(e.message); } finally { document.getElementById('loader').classList.remove('active'); }
+}
+
+async function prepareFileData(f) {
+    if (f.dataStart) return f;
+    const lhDv = await fetchRange(zipUrl, f.offset, f.offset + 29);
+    f.dataStart = f.offset + 30 + u16(lhDv, 26) + u16(lhDv, 28);
+    f.dataEnd = f.dataStart + f.csize - 1;
+    return f;
+}
+
+// ─── Direct Download ───
+async function downloadFile(path) {
+  const f = allFiles.find(file => file.path === path); if (!f) return;
+  const id = 'dl_' + (++downloadCount);
+  const controller = new AbortController();
+  activeAbortControllers[id] = controller;
+  addDlItem(id, f.name); document.getElementById('dlPanel').classList.add('show');
+
+  try {
+      await prepareFileData(f);
+      const clockStart = Date.now();
+      updateDlItem(id, { status: 'active', pct: 0, loaded: 0, total: f.size, speed: '—', eta: '∞' });
+
+      if (window.showSaveFilePicker) {
+          const handle = await window.showSaveFilePicker({ suggestedName: f.name });
+          const writable = await handle.createWritable();
+          
+          const res = await fetch(zipUrl, { headers: { 'Range': `bytes=${f.dataStart}-${f.dataEnd}` }, signal: controller.signal });
+          let stream = res.body;
+          if (f.compression === 8) stream = stream.pipeThrough(new DecompressionStream('deflate-raw'));
+          
+          const reader = stream.getReader();
+          let loaded = 0;
+          while(true) {
+              const {done, value} = await reader.read();
+              if(done) break;
+              await writable.write(value);
+              loaded += value.length;
+              
+              let speed = ((Date.now() - clockStart)/1000) > 0 ? loaded / ((Date.now() - clockStart)/1000) : 0;
+              updateDlItem(id, { status: 'active', pct: Math.round((loaded/f.size)*100), loaded, total: f.size, speed: formatSize(speed)+'/s', eta: formatTime((f.size-loaded)/speed) });
+          }
+          await writable.close();
+          updateDlItem(id, { status: 'done', pct: 100, loaded: f.size, total: f.size, speed: '✓ Saved', eta: formatTime((Date.now()-clockStart)/1000) });
+      } else {
+          // SW Fallback Download (Fixed Race Condition)
+          await registerStreamSW(id, { zipUrl, compression: f.compression, size: f.size, dataStart: f.dataStart, dataEnd: f.dataEnd, name: f.name });
+          
+          const a = document.createElement('a'); 
+          a.href = `/__zip_stream/${id}?dl=1`; 
+          a.download = f.name;
+          document.body.appendChild(a); 
+          a.click(); 
+          setTimeout(() => document.body.removeChild(a), 100);
+          
+          updateDlItem(id, { status: 'done', pct: 100, loaded: f.size, total: f.size, speed: 'Browser handled', eta: 'Check browser downloads' });
+      }
+  } catch(e) {
+      updateDlItem(id, { status: 'error', pct: 0, loaded: 0, total: 0, speed: e.name === 'AbortError' ? '❌ Cancelled' : 'Error', eta: '—', error: e.message });
+  } finally { delete activeAbortControllers[id]; updateQueueCount(); }
+}
+
+function cancelTask(id) { if (activeAbortControllers[id]) activeAbortControllers[id].abort(); }
+
+// ─── Video Play via SW ───
+async function playVideo(path) {
+  const f = allFiles.find(file => file.path === path); if (!f) return;
+  closeVideo();
+  document.getElementById('videoTitle').textContent = '🎬 Live Player: ' + f.name;
+  document.getElementById('videoModal').classList.add('show');
+  document.getElementById('videoLoading').classList.remove('hidden');
+
+  try {
+      await prepareFileData(f);
+      const streamId = 'vid_' + Date.now();
+      
+      // Fixed Race Condition for Playback too
+      await registerStreamSW(streamId, { zipUrl, compression: f.compression, size: f.size, dataStart: f.dataStart, dataEnd: f.dataEnd, name: f.name });
+
+      const virtualUrl = `/__zip_stream/${streamId}`;
+      const isAudio = ['mp3', 'wav', 'ogg'].includes(f.ext);
+      const player = document.getElementById(isAudio ? 'audioPlayer' : 'videoPlayer');
+      
+      document.getElementById('streamTargetUrl').value = window.location.origin + virtualUrl;
+      document.getElementById('codecBadge').textContent = f.ext.toUpperCase();
+
+      player.src = virtualUrl;
+      player.style.display = 'block';
+      
+      player.oncanplay = () => { document.getElementById('videoLoading').classList.add('hidden'); };
+      player.play().catch(() => {});
+  } catch(e) {
+      document.getElementById('videoLoading').innerHTML = `<span style="color:var(--danger)">❌ Error: ${e.message}</span>`;
+  }
+}
+
+// ─── Draggable UI ───
+const dragPanel = document.getElementById('dlPanel');
+const dragHeader = document.getElementById('dlHeaderDrag');
+let activeDrag = false, xOff = 0, yOff = 0;
+
+dragHeader.addEventListener('mousedown', e => {
+  if (e.target.closest('.dl-close')) return;
+  activeDrag = true;
+  xOff = e.clientX - dragPanel.getBoundingClientRect().left;
+  yOff = e.clientY - dragPanel.getBoundingClientRect().top;
+});
+document.addEventListener('mousemove', e => {
+  if (!activeDrag) return;
+  dragPanel.style.right = 'auto'; dragPanel.style.bottom = 'auto';
+  dragPanel.style.left = (e.clientX - xOff) + 'px';
+  dragPanel.style.top = (e.clientY - yOff) + 'px';
+});
+document.addEventListener('mouseup', () => activeDrag = false);
+
+// ─── General UI Helpers ───
+function showError(msg) { document.getElementById('errorBox').textContent = msg; document.getElementById('errorBox').classList.toggle('show', !!msg); }
+function escHtml(s) { return s.replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
+function filterFiles() { const q = document.getElementById('searchInput').value.toLowerCase(); renderFiles(allFiles.filter(f => f.path.toLowerCase().includes(q))); }
+function updateQueueCount() { document.getElementById('dlQueueCount').textContent = Object.keys(activeAbortControllers).length; }
+function copyStreamLink(btn) { const t = document.getElementById("streamTargetUrl"); t.select(); navigator.clipboard.writeText(t.value); btn.textContent="✅ Copied!"; setTimeout(()=>btn.textContent="📋 Copy Link", 1500); }
+
+function closeVideo() { 
+  ['videoPlayer', 'audioPlayer'].forEach(id => { const p = document.getElementById(id); p.pause(); p.src = ""; p.style.display = 'none'; });
+  document.getElementById('videoModal').classList.remove('show'); 
+}
+
+function addDlItem(id, name) {
+  const el = document.createElement('div'); el.className = 'dl-item'; el.id = id;
+  el.innerHTML = `
+    <div class="dl-item-top"><div class="dl-item-name">${name}</div><button class="btn-cancel-task" onclick="cancelTask('${id}')">✕ Cancel</button></div>
+    <div class="progress-bar-wrap"><div class="progress-bar" id="${id}_bar"></div></div>
+    <div class="dl-stats">
+      <div class="stat-box"><span class="stat-label">Speed</span><span class="stat-val" id="${id}_speed">—</span></div>
+      <div class="stat-box"><span class="stat-label">Loaded</span><span class="stat-val" id="${id}_loaded">—</span></div>
+      <div class="stat-box"><span class="stat-label">ETA</span><span class="stat-val" id="${id}_eta">—</span></div>
+      <div class="stat-box"><span class="stat-label">Progress</span><span class="stat-val" id="${id}_pct">0%</span></div>
+    </div>`;
+  document.getElementById('dlItems').prepend(el);
+}
+
+function updateDlItem(id, d) {
+  const el = document.getElementById(id); if (!el) return; el.className = `dl-item ${d.status}`;
+  const bar = document.getElementById(id + '_bar'); bar.style.width = d.pct + '%'; bar.className = `progress-bar ${d.status === 'done' ? 'done' : d.status === 'error' ? 'error' : ''}`;
+  if (d.status === 'done' || d.status === 'error') { const c = el.querySelector('.btn-cancel-task'); if(c) c.style.display = 'none'; }
+  document.getElementById(id + '_speed').textContent = d.speed; document.getElementById(id + '_loaded').textContent = `${formatSize(d.loaded)} / ${formatSize(d.total)}`;
+  document.getElementById(id + '_eta').textContent = d.eta; document.getElementById(id + '_pct').textContent = d.pct + '%';
+}
+
+function renderFiles(files) {
+  const list = document.getElementById('fileList'); 
+  if (!files.length) { list.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--muted);font-size:0.8rem;">No files</div>'; return; }
+  list.innerHTML = files.map(f => `
+    <div class="file-item">
+      <div class="file-icon">${getIcon(f.name)}</div>
+      <div class="file-info"><div class="file-name" title="${f.path}">${f.name}</div><div class="file-path">${f.folder}</div></div>
+      <div class="file-size">${formatSize(f.size)}</div>
+      <div class="file-actions">
+        ${isVideo(f.name) ? `<button class="btn btn-sm btn-play" onclick="playVideo('${escHtml(f.path)}')">▶ Play</button>` : ''}
+        <button class="btn btn-sm btn-download" onclick="downloadFile('${escHtml(f.path)}')">⬇</button>
+      </div>
+    </div>`).join('');
+}
+document.getElementById('zipUrl').addEventListener('keydown', e => { if (e.key === 'Enter') loadZip(); });
+</script>
+</body>
+</html>
