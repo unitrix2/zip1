@@ -11,7 +11,6 @@ const activeStreams = new Map();
 self.addEventListener('message', event => {
     if (event.data.type === 'REGISTER_STREAM') {
         activeStreams.set(event.data.id, event.data.payload);
-        // Acknowledge back to the main thread that the stream is ready
         if (event.ports && event.ports[0]) {
             event.ports[0].postMessage({ status: 'ok' });
         }
@@ -20,15 +19,17 @@ self.addEventListener('message', event => {
 
 self.addEventListener('fetch', event => {
     const url = new URL(event.request.url);
-    if (url.pathname.startsWith('/__zip_stream/')) {
-        const id = url.pathname.split('/')[2];
+    
+    // FIX: Used query parameter instead of path to guarantee Service Worker scope interception
+    if (url.searchParams.has('sw_stream')) {
+        const id = url.searchParams.get('sw_stream');
         const fileData = activeStreams.get(id);
 
         if (!fileData) {
-            event.respondWith(new Response('Stream expired or not found.', { status: 404 }));
+            event.respondWith(new Response('Stream expired or Service Worker reset. Please reload the page.', { status: 404 }));
             return;
         }
-        event.respondWith(handleStreamRequest(event.request, fileData, url.searchParams.has('dl')));
+        event.respondWith(handleStreamRequest(event.request, fileData, url.searchParams.get('dl') === '1'));
     }
 });
 
@@ -52,6 +53,8 @@ async function handleStreamRequest(request, f, isDownload) {
         const res = await fetch(f.zipUrl, {
             headers: { 'Range': `bytes=${fetchStart}-${fetchEnd}` }
         });
+
+        if (!res.ok) throw new Error(`Server rejected range request. Status: ${res.status}`);
 
         let stream = res.body;
         if (f.compression === 8) {
@@ -80,6 +83,7 @@ async function handleStreamRequest(request, f, isDownload) {
             }
         }
     } catch(e) {
+        console.error("SW Fetch Error:", e);
         return new Response(e.message, { status: 500 });
     }
 }
@@ -87,15 +91,8 @@ async function handleStreamRequest(request, f, isDownload) {
 function getMimeType(name) {
     const ext = name.split('.').pop().toLowerCase();
     const map = {
-        'mp4': 'video/mp4',
-        'webm': 'video/webm',
-        // TRICK: WebM is a subset of Matroska. Spoofing MKV as WebM 
-        // forces the browser's native parser to handle the video/audio track automatically.
-        'mkv': 'video/webm',
-        'avi': 'video/mp4',
-        'mp3': 'audio/mpeg', 
-        'ogg': 'audio/ogg', 
-        'wav': 'audio/wav'
+        'mp4': 'video/mp4', 'mkv': 'video/mp4', 'avi': 'video/mp4', 'webm': 'video/webm',
+        'mp3': 'audio/mpeg', 'ogg': 'audio/ogg', 'wav': 'audio/wav'
     };
     return map[ext] || 'application/octet-stream';
 }
