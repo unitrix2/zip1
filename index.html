@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZIP Explorer Pro (Universal Viewer Edition)</title>
+<title>ZIP Explorer Pro (Universal & Office Edition)</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
   :root {
     --bg: #09090b; --surface: #18181b; --surface2: #27272a; --border: #3f3f46;
     --accent: #38bdf8; --accent2: #8b5cf6; --accent3: #10b981;
-    --danger: #ef4444; --text: #f8fafc; --muted: #94a3b8;
+    --danger: #ef4444; --warn: #eab308; --text: #f8fafc; --muted: #94a3b8;
     --font-sans: 'Inter', sans-serif; --font-mono: 'JetBrains Mono', monospace;
   }
 
@@ -43,6 +43,7 @@
   .status-bar { display: flex; gap: 0.75rem; margin-top: 1.2rem; flex-wrap: wrap; align-items: center; }
   .badge { font-size: 0.75rem; font-weight: 500; padding: 0.3rem 0.8rem; border-radius: 20px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text); }
   .badge.accent { color: var(--accent); border-color: rgba(56, 189, 248, 0.3); background: rgba(56, 189, 248, 0.05); }
+  .badge.warn { color: var(--warn); border-color: rgba(234, 179, 8, 0.3); background: rgba(234, 179, 8, 0.05); }
 
   .explorer { background: rgba(24, 24, 27, 0.6); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; display: none; }
   .explorer.show { display: block; animation: fadeUp 0.5s ease; }
@@ -64,7 +65,7 @@
   /* Universal Viewer Modal */
   .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(16px); z-index: 2000; display: none; align-items: center; justify-content: center; padding: 1rem; }
   .modal-backdrop.show { display: flex; animation: fadeIn 0.3s ease; }
-  .viewer-modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; width: 100%; max-width: 1000px; height: 85vh; display: flex; flex-direction: column; box-shadow: 0 30px 80px rgba(0,0,0,0.8); }
+  .viewer-modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; width: 100%; max-width: 1100px; height: 85vh; display: flex; flex-direction: column; box-shadow: 0 30px 80px rgba(0,0,0,0.8); }
   .viewer-header { padding: 1rem 1.5rem; background: rgba(0,0,0,0.4); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
   .viewer-title { font-size: 0.9rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 0.5rem; }
   .modal-close { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text); cursor: pointer; font-size: 1.2rem; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
@@ -78,18 +79,22 @@
   .img-viewer { max-width: 100%; max-height: 100%; object-fit: contain; }
   .pdf-viewer { width: 100%; height: 100%; border: none; background: #fff; }
   
-  /* Office Document Viewer */
-  .office-container { width: 100%; height: 100%; background: #f3f4f6; color: #111827; overflow: auto; padding: 2rem; display: flex; justify-content: center; }
-  .office-doc { background: #fff; width: 100%; max-width: 850px; min-height: 100%; padding: 3rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-radius: 4px; overflow-x: auto; font-family: 'Arial', sans-serif; }
-  .office-doc table { border-collapse: collapse; width: 100%; }
-  .office-doc td, .office-doc th { border: 1px solid #d1d5db; padding: 8px; font-size: 0.85rem; }
-  .office-doc th { background: #e5e7eb; font-weight: bold; }
+  /* Pro MS Office Viewer container */
+  .office-container { width: 100%; height: 100%; background: #f3f4f6; color: #111827; overflow: auto; display: flex; flex-direction: column; }
+  .office-doc { background: #fff; margin: 1.5rem auto; width: 95%; max-width: 900px; min-height: 100%; padding: 3rem; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-radius: 6px; font-family: 'Calibri', 'Arial', sans-serif; line-height: 1.5; }
+  
+  /* MS Excel UI Simulation */
+  .excel-wrapper { width: 100%; height: 100%; overflow: auto; background: #fff; }
+  table.excel-table { width: max-content; min-width: 100%; border-collapse: collapse; font-family: 'Calibri', sans-serif; font-size: 0.85rem; }
+  table.excel-table th, table.excel-table td { border: 1px solid #d4d4d4; padding: 4px 8px; white-space: nowrap; color: #000; }
+  table.excel-table tr:first-child { background: #f3f3f3; font-weight: bold; text-align: center; position: sticky; top: 0; box-shadow: 0 1px 0 #d4d4d4; z-index: 10; }
+  table.excel-table tr:hover { background-color: #f9f9f9; }
 
   /* Loading State */
   .viewer-loading { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(5,5,5,0.9); z-index: 10; gap: 1rem; color: var(--muted); font-size: 0.9rem; }
   .spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; }
   
-  .viewer-footer { padding: 0.8rem 1.5rem; background: var(--surface2); border-top: 1px solid var(--border); font-size: 0.75rem; color: var(--muted); flex-shrink: 0; display: flex; justify-content: space-between; align-items: center;}
+  .viewer-footer { padding: 0.8rem 1.5rem; background: var(--surface2); border-top: 1px solid var(--border); font-size: 0.75rem; color: var(--muted); flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
 
   @keyframes spin { 100% { transform: rotate(360deg); } }
   @keyframes fadeDown { from { opacity:0; transform:translateY(-20px); } to { opacity:1; transform:translateY(0); } }
@@ -104,7 +109,7 @@
 <div class="container">
   <header>
     <div class="logo">ZIP Explorer Pro</div>
-    <div class="tagline">Browse · Stream · View Everything</div>
+    <div class="tagline">Browse · Stream · Pro View</div>
   </header>
 
   <div class="input-zone">
@@ -140,15 +145,14 @@
     <div class="viewer-body" id="viewerBody">
       <div class="viewer-loading" id="viewerLoading" style="display:none;">
         <div class="spinner"></div>
-        <div id="loadingText">Processing & Rendering File...</div>
+        <div id="loadingText">Processing File...</div>
       </div>
-      
       <div id="renderContainer" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center;"></div>
     </div>
 
     <div class="viewer-footer">
-      <div id="viewerInfo">Supported Formats: Video, Audio, Images, PDF, Excel, Word</div>
-      <button class="btn btn-sm btn-download" id="viewerDownloadBtn" style="display:none;">⬇ Download Native</button>
+      <div id="viewerInfo" style="display: flex; gap: 10px; align-items: center;"></div>
+      <button class="btn btn-sm btn-download" id="viewerDownloadBtn" style="display:none;">⬇ Download File</button>
     </div>
   </div>
 </div>
@@ -179,7 +183,7 @@ const EXT = {
     VIDEO: ['mp4','webm','mkv','avi','mov','ts'],
     AUDIO: ['mp3','wav','ogg','flac','m4a'],
     IMAGE: ['jpg','jpeg','png','gif','webp','svg'],
-    OFFICE: ['xlsx','csv','docx'],
+    OFFICE: ['xls','xlsx','xlsm','csv','doc','docx','ppt','pptx'],
     PDF: ['pdf']
 };
 
@@ -193,10 +197,7 @@ function getIcon(name) {
     if(EXT.OFFICE.includes(ext)) return '📊'; 
     return '📦'; 
 }
-function canView(name) {
-    const ext = getExt(name);
-    return Object.values(EXT).some(arr => arr.includes(ext));
-}
+function canView(name) { return Object.values(EXT).some(arr => arr.includes(getExt(name))); }
 function formatSize(bytes) { if (!bytes) return '—'; const u = ['B','KB','MB','GB']; let i=0; while(bytes>=1024 && i<3){bytes/=1024; i++;} return bytes.toFixed(1) + ' ' + u[i]; }
 
 let zipUrl = ''; let zipSize = 0; let allFiles = [];
@@ -218,11 +219,11 @@ async function loadZip() {
   if (!url) { showToast('❌ Error: URL is required!'); return; }
   zipUrl = url; 
   document.getElementById('explorer').classList.remove('show');
-  showToast('🔄 Reading ZIP Headers...', 2000);
+  showToast('🔄 Reading ZIP...', 2000);
   
   try {
     const initRes = await fetch(zipUrl, { headers: { 'Range': 'bytes=0-0' } });
-    if (!initRes.ok) throw new Error("CORS or Proxy blocked the connection.");
+    if (!initRes.ok) throw new Error("CORS or Proxy blocked.");
     const cr = initRes.headers.get('content-range');
     if(!cr) throw new Error("Server does not support Range Requests.");
     
@@ -233,7 +234,7 @@ async function loadZip() {
     
     let eocdOff = -1;
     for (let i = tailDv.byteLength - 22; i >= 0; i--) { if (tailDv.getUint32(i, true) === 0x06054b50) { eocdOff = i; break; } }
-    if (eocdOff === -1) throw new Error('Invalid ZIP structure.');
+    if (eocdOff === -1) throw new Error('Invalid ZIP.');
 
     let cdSize = u32(tailDv, eocdOff + 12); let cdOffset = u32(tailDv, eocdOff + 16);
     const locOff = eocdOff - 20;
@@ -306,7 +307,7 @@ async function downloadFile(path) {
   } catch(e) { showToast(`❌ Error: ${e.message}`); }
 }
 
-// ─── Dynamic Script Loader for Client-Side Rendering ───
+// ─── Script Loader ───
 function loadScript(src) {
     return new Promise((resolve, reject) => {
         if (document.querySelector(`script[src="${src}"]`)) return resolve();
@@ -316,7 +317,7 @@ function loadScript(src) {
     });
 }
 
-// ─── Universal Viewer Logic ───
+// ─── Universal Pro Viewer ───
 async function viewFile(path) {
   const f = allFiles.find(file => file.path === path); if (!f) return;
   
@@ -324,8 +325,10 @@ async function viewFile(path) {
   const loading = document.getElementById('viewerLoading');
   const title = document.getElementById('viewerTitle');
   const dlBtn = document.getElementById('viewerDownloadBtn');
+  const info = document.getElementById('viewerInfo');
   
   container.innerHTML = '';
+  info.innerHTML = `<span>Format: ${f.ext.toUpperCase()}</span> <span>Size: ${formatSize(f.size)}</span>`;
   title.innerHTML = `${getIcon(f.name)} ${f.name}`;
   document.getElementById('viewerModal').classList.add('show');
   loading.style.display = 'flex';
@@ -338,60 +341,71 @@ async function viewFile(path) {
       const streamId = 'vid_' + Date.now();
       await registerStreamSW(streamId, { zipUrl, compression: f.compression, size: f.size, dataStart: f.dataStart, dataEnd: f.dataEnd, name: f.name });
       const streamUrl = window.location.pathname + `?sw_stream=${streamId}`;
-
       const ext = f.ext;
 
-      // 1. VIDEO
+      // Warn if video is compressed
+      if (EXT.VIDEO.includes(ext) && f.compression !== 0) {
+          info.innerHTML += ` <span class="badge warn">⚠️ Compressed Video (May stutter)</span>`;
+      }
+
+      // Add XLSM Warning
+      if (ext === 'xlsm') {
+          info.innerHTML += ` <span class="badge warn" style="margin-left:auto;">🔒 Macros Disabled (View Only)</span>`;
+      }
+
       if (EXT.VIDEO.includes(ext)) {
-          container.innerHTML = `<video controls playsinline preload="auto"><source src="${streamUrl}" type="${getMimeType(f.name)}"></video>`;
+          container.innerHTML = `<video controls playsinline preload="auto"><source src="${streamUrl}"></video>`;
           const vid = container.querySelector('video');
           vid.oncanplay = () => loading.style.display = 'none';
           vid.onerror = () => {
               loading.style.display = 'none';
-              container.innerHTML = `<div style="color:var(--danger); text-align:center;">⚠️ Browser Cannot Decode Video (Likely HEVC/H.265).<br>Please use the Download button below and play in VLC.</div>`;
+              container.innerHTML = `<div style="color:var(--danger); text-align:center;">⚠️ Browser Cannot Decode Video.<br>Please use the Download button below and play in VLC.</div>`;
           };
       } 
-      // 2. AUDIO
       else if (EXT.AUDIO.includes(ext)) {
-          container.innerHTML = `<div style="text-align:center; width:100%;"><div style="font-size:4rem; margin-bottom:2rem;">🎵</div><audio controls autoplay style="width:80%; max-width:500px;"><source src="${streamUrl}" type="${getMimeType(f.name)}"></audio></div>`;
+          container.innerHTML = `<div style="text-align:center; width:100%;"><div style="font-size:4rem; margin-bottom:2rem;">🎵</div><audio controls autoplay style="width:80%; max-width:500px;"><source src="${streamUrl}"></audio></div>`;
           loading.style.display = 'none';
       }
-      // 3. IMAGE
       else if (EXT.IMAGE.includes(ext)) {
           container.innerHTML = `<img src="${streamUrl}" class="img-viewer" alt="image">`;
           container.querySelector('img').onload = () => loading.style.display = 'none';
       }
-      // 4. PDF
       else if (EXT.PDF.includes(ext)) {
           container.innerHTML = `<iframe src="${streamUrl}" class="pdf-viewer"></iframe>`;
           loading.style.display = 'none';
       }
-      // 5. MS OFFICE (Client-Side Render)
       else if (EXT.OFFICE.includes(ext)) {
           document.getElementById('loadingText').textContent = "Downloading & Parsing Document...";
           const res = await fetch(streamUrl);
           const arrayBuffer = await res.arrayBuffer();
           
-          container.innerHTML = `<div class="office-container"><div class="office-doc" id="officeDocArea"></div></div>`;
-          const docArea = document.getElementById('officeDocArea');
-
-          if (ext === 'xlsx' || ext === 'csv') {
-              document.getElementById('loadingText').textContent = "Rendering Excel Sheet...";
+          if (['xls', 'xlsx', 'xlsm', 'csv'].includes(ext)) {
+              document.getElementById('loadingText').textContent = "Rendering Excel Grid...";
               await loadScript('https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js');
               const wb = XLSX.read(arrayBuffer, {type: 'array'});
-              const ws = wb.Sheets[wb.SheetNames[0]]; // Render first sheet
-              docArea.innerHTML = XLSX.utils.sheet_to_html(ws);
+              const ws = wb.Sheets[wb.SheetNames[0]];
+              
+              // Custom Pro MS Excel UI rendering
+              const htmlStr = XLSX.utils.sheet_to_html(ws, { id: "rendered-excel" });
+              container.innerHTML = `<div class="excel-wrapper">${htmlStr}</div>`;
+              
+              // Apply styling
+              const table = container.querySelector('#rendered-excel');
+              if(table) table.className = "excel-table";
           } 
-          else if (ext === 'docx') {
+          else if (['doc', 'docx'].includes(ext)) {
               document.getElementById('loadingText').textContent = "Rendering Word Document...";
               await loadScript('https://cdn.jsdelivr.net/npm/jszip/dist/jszip.min.js');
               await loadScript('https://cdn.jsdelivr.net/npm/docx-preview/dist/docx-preview.min.js');
-              await docx.renderAsync(arrayBuffer, docArea);
+              container.innerHTML = `<div class="office-container"><div class="office-doc" id="officeDocArea"></div></div>`;
+              try { await docx.renderAsync(arrayBuffer, document.getElementById('officeDocArea')); }
+              catch { container.innerHTML = `<div style="color:#fff;">Word render failed. Please download the file.</div>`; }
+          }
+          else if (['ppt', 'pptx'].includes(ext)) {
+              container.innerHTML = `<div style="color:#fff; text-align:center;">Presentation Viewer is not supported natively.<br>Please use the <b>Download</b> button below to open in MS PowerPoint.</div>`;
           }
           loading.style.display = 'none';
       }
-
-      document.getElementById('viewerInfo').textContent = `Format: ${ext.toUpperCase()} | Size: ${formatSize(f.size)}`;
       
   } catch(e) {
       loading.style.display = 'none';
@@ -400,20 +414,11 @@ async function viewFile(path) {
 }
 
 function closeViewer() { 
-  document.getElementById('renderContainer').innerHTML = ''; // Destroy elements (stops video/audio)
+  document.getElementById('renderContainer').innerHTML = '';
   document.getElementById('viewerModal').classList.remove('show');
 }
 
-// ─── UI Helpers ───
-function getMimeType(name) {
-    const ext = name.split('.').pop().toLowerCase();
-    const map = {
-        'mp4': 'video/mp4', 'mkv': 'video/mp4', 'avi': 'video/mp4', 'webm': 'video/webm',
-        'mp3': 'audio/mpeg', 'ogg': 'audio/ogg', 'wav': 'audio/wav'
-    };
-    return map[ext] || '';
-}
-
+// ─── Global UI ───
 function escHtml(s) { return s.replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
 function filterFiles() { const q = document.getElementById('searchInput').value.toLowerCase(); renderFiles(allFiles.filter(f => f.path.toLowerCase().includes(q))); }
 
