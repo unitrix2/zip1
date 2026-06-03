@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZIP Explorer Pro (Zero-RAM + Cloudflare Drive Edition)</title>
+<title>ZIP Explorer Pro (Zero-RAM + Cloudflare Edition)</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;700;800&display=swap');
 
@@ -29,7 +29,7 @@
   .url-input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 0.85rem 1.1rem; color: var(--text); font-family: var(--font-mono); font-size: 0.85rem; outline: none; }
   .url-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,229,255,0.1); }
 
-  .btn { padding: 0.85rem 1.5rem; border-radius: 10px; border: none; cursor: pointer; font-family: var(--font-mono); font-size: 0.82rem; font-weight: 500; transition: all 0.2s; white-space: nowrap; }
+  .btn { padding: 0.85rem 1.5rem; border-radius: 10px; border: none; cursor: pointer; font-family: var(--font-mono); font-size: 0.82rem; font-weight: 500; transition: all 0.2s; white-space: nowrap; text-decoration: none; display: inline-block; }
   .btn-primary { background: linear-gradient(135deg, var(--accent2), var(--accent)); color: #fff; }
   .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,229,255,0.25); }
   .btn-sm { padding: 0.45rem 0.9rem; font-size: 0.75rem; border-radius: 7px; }
@@ -37,6 +37,10 @@
   .btn-download:hover { background: rgba(0,229,255,0.2); box-shadow: 0 0 12px rgba(0,229,255,0.2); }
   .btn-play { background: rgba(16,185,129,0.1); color: var(--accent3); border: 1px solid rgba(16,185,129,0.25); }
   .btn-play:hover { background: rgba(16,185,129,0.2); box-shadow: 0 0 12px rgba(16,185,129,0.2); }
+  .btn-vlc { background: rgba(255,136,0,0.1); color: #ff9900; border: 1px solid rgba(255,136,0,0.3); }
+  .btn-vlc:hover { background: rgba(255,136,0,0.2); box-shadow: 0 0 12px rgba(255,136,0,0.2); }
+  .btn-mx { background: rgba(0,136,255,0.1); color: #00aaff; border: 1px solid rgba(0,136,255,0.3); }
+  .btn-mx:hover { background: rgba(0,136,255,0.2); box-shadow: 0 0 12px rgba(0,136,255,0.2); }
   .btn-cancel-task { background: rgba(239,68,68,0.15); color: var(--danger); border: 1px solid rgba(239,68,68,0.3); font-size: 0.68rem; padding: 0.2rem 0.5rem; border-radius: 4px; cursor: pointer; transition: all 0.15s; }
   .btn-cancel-task:hover { background: var(--danger); color: #fff; }
 
@@ -98,13 +102,14 @@
   video, audio { width: 100%; max-height: 400px; background: #000; border-radius: 8px; outline: none; margin-bottom: 14px; border: 1px solid var(--border); display: none; }
   .video-loading { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #000; gap: 0.75rem; color: var(--muted); font-size: 0.8rem; z-index: 5; }
   .video-loading.hidden { display: none; }
+  
+  .external-players { display: flex; gap: 0.5rem; justify-content: center; margin-top: 10px; flex-wrap: wrap; width: 100%; }
   .video-footer { padding: 0.75rem 1.25rem; font-size: 0.72rem; color: var(--muted); display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; background: var(--surface2); }
   .codec-badge { padding: 0.2rem 0.55rem; border-radius: 5px; background: rgba(0,229,255,0.1); color: var(--accent); border: 1px solid rgba(0,229,255,0.2); font-size: 0.67rem; }
-  .custom-stream-box { width: 100%; background: #08080c; border: 1px dashed var(--warn); border-radius: 10px; padding: 1rem; text-align: left; }
+  .custom-stream-box { width: 100%; background: #08080c; border: 1px dashed var(--warn); border-radius: 10px; padding: 1rem; text-align: left; margin-top: 15px; }
   .custom-stream-box input { width: 100%; padding: 10px; background: #020204; border: 1px solid var(--border); color: var(--warn); font-family: var(--font-mono); font-size: 0.75rem; border-radius: 6px; outline: none; margin-top: 8px; margin-bottom: 8px; }
 
   @keyframes fadeDown { from { opacity:0; transform:translateY(-20px); } to { opacity:1; transform:translateY(0); } }
-  @keyframes fadeUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
 </style>
 </head>
 <body>
@@ -121,7 +126,7 @@
       <button class="btn btn-primary" onclick="loadZip()">🔍 Load ZIP</button>
     </div>
     <div style="font-size: 0.72rem; color: var(--muted); margin-top: 0.6rem;">
-      ✅ Service Worker Active. Ab video buffer aur download 0-RAM me honge.
+      ✅ Service Worker Interception using Query Params. Download & Streaming Secured.
     </div>
     <div class="status-bar" id="statusBar" style="display:none">
       <span class="badge accent" id="totalFiles"></span>
@@ -160,20 +165,25 @@
     <div class="video-wrap">
       <div class="video-loading" id="videoLoading">
         <div class="spinner" style="width:32px;height:32px;border-width:3px"></div>
-        <span>Connecting Service Worker...</span>
+        <span>Connecting Local Stream...</span>
       </div>
 
       <video id="videoPlayer" controls preload="metadata" playsinline></video>
       <audio id="audioPlayer" controls preload="metadata"></audio>
 
-      <div class="custom-stream-box" style="margin-top:15px;">
-        <span style="color:var(--warn); font-size:0.8rem; font-weight:bold;">🚀 Local SW Stream Link:</span>
+      <div class="external-players" id="externalPlayers" style="display:none;">
+        <a id="vlcBtn" href="#" class="btn btn-sm btn-vlc">🟠 Play in VLC</a>
+        <a id="mxBtn" href="#" class="btn btn-sm btn-mx">🔵 Play in MX Player</a>
+      </div>
+
+      <div class="custom-stream-box">
+        <span style="color:var(--warn); font-size:0.8rem; font-weight:bold;">🚀 Stream Link (Browser codec fail ho toh VLC me paste karein):</span>
         <input type="text" id="streamTargetUrl" readonly />
         <button class="btn btn-sm btn-primary" onclick="copyStreamLink(this)" style="padding:0.35rem 0.8rem;">📋 Copy Link</button>
       </div>
     </div>
     <div class="video-footer">
-      <span id="videoCodecInfo">🎬 Service Worker Streaming Active</span>
+      <span id="videoCodecInfo">🎬 URL Parameter Streaming Active</span>
       <span class="codec-badge" id="codecBadge">Auto</span>
     </div>
   </div>
@@ -187,24 +197,21 @@ if ('serviceWorker' in navigator) {
     }).catch(err => console.error('SW Error:', err));
 }
 
-// ─── Helper: Safely register stream with SW to prevent race conditions ───
 function registerStreamSW(id, payload) {
     return new Promise((resolve, reject) => {
         if (!navigator.serviceWorker.controller) {
-            reject(new Error("Service Worker is not active."));
+            reject(new Error("Service Worker is not active. Try refreshing."));
             return;
         }
         const channel = new MessageChannel();
         channel.port1.onmessage = (event) => {
             if(event.data && event.data.status === 'ok') resolve();
-            else resolve(); // Fallback resolution
         };
         navigator.serviceWorker.controller.postMessage(
             { type: 'REGISTER_STREAM', id: id, payload: payload },
             [channel.port2]
         );
-        // Timeout in case SW is unresponsive
-        setTimeout(resolve, 1000);
+        setTimeout(resolve, 800); // Failsafe timeout
     });
 }
 
@@ -231,7 +238,7 @@ function formatTime(sec) {
   return Math.floor(sec/60) + 'm ' + (Math.ceil(sec%60)) + 's';
 }
 
-// ─── ZIP Core (NO BIGINT) ───
+// ─── ZIP Core ───
 let zipUrl = ''; let zipSize = 0; let allFiles = []; let downloadCount = 0;
 const activeAbortControllers = {};
 
@@ -244,10 +251,7 @@ async function fetchRange(url, start, end) {
 const u16 = (dv, o) => dv.getUint16(o, true);
 const u32 = (dv, o) => dv.getUint32(o, true);
 const u64 = (dv, o) => dv.getUint32(o + 4, true) * 0x100000000 + dv.getUint32(o, true);
-
-function safeDecode(bytes) {
-  try { return new TextDecoder('utf-8').decode(bytes); } catch { return new TextDecoder('cp437').decode(bytes); }
-}
+function safeDecode(bytes) { try { return new TextDecoder('utf-8').decode(bytes); } catch { return new TextDecoder('cp437').decode(bytes); } }
 
 async function loadZip() {
   const url = document.getElementById('zipUrl').value.trim();
@@ -273,28 +277,18 @@ async function loadZip() {
     }
     if (eocdOff === -1) throw new Error('Invalid ZIP structure.');
 
-    let cdSize = u32(tailDv, eocdOff + 12); 
-    let cdOffset = u32(tailDv, eocdOff + 16);
-    
-    // Check ZIP64
+    let cdSize = u32(tailDv, eocdOff + 12); let cdOffset = u32(tailDv, eocdOff + 16);
     const locOff = eocdOff - 20;
     if (locOff >= 0 && tailDv.getUint32(locOff, true) === 0x07064b50) {
       const eocd64Offset = u64(tailDv, locOff + 8);
       if (eocd64Offset - start >= 0) {
-          const lOff = eocd64Offset - start;
-          cdSize = u64(tailDv, lOff + 40); 
-          cdOffset = u64(tailDv, lOff + 48);
+          const lOff = eocd64Offset - start; cdSize = u64(tailDv, lOff + 40); cdOffset = u64(tailDv, lOff + 48);
       }
     }
 
-    let cdDv;
-    if (cdOffset >= start) {
-        cdDv = new DataView(tailDv.buffer, tailDv.byteOffset + (cdOffset - start), cdSize);
-    } else {
-        cdDv = await fetchRange(zipUrl, cdOffset, cdOffset + cdSize - 1);
-    }
-
+    let cdDv = (cdOffset >= start) ? new DataView(tailDv.buffer, tailDv.byteOffset + (cdOffset - start), cdSize) : await fetchRange(zipUrl, cdOffset, cdOffset + cdSize - 1);
     allFiles = []; let offset = 0;
+
     while (offset + 46 <= cdDv.byteLength) {
       if (cdDv.getUint32(offset, true) !== 0x02014b50) break;
       const comp = u16(cdDv, offset + 10); 
@@ -343,7 +337,7 @@ async function prepareFileData(f) {
     return f;
 }
 
-// ─── Direct Download ───
+// ─── Direct Download (Fixed Race Condition & Scope) ───
 async function downloadFile(path) {
   const f = allFiles.find(file => file.path === path); if (!f) return;
   const id = 'dl_' + (++downloadCount);
@@ -353,43 +347,25 @@ async function downloadFile(path) {
 
   try {
       await prepareFileData(f);
-      const clockStart = Date.now();
-      updateDlItem(id, { status: 'active', pct: 0, loaded: 0, total: f.size, speed: '—', eta: '∞' });
+      updateDlItem(id, { status: 'active', pct: 0, loaded: 0, total: f.size, speed: 'Connecting...', eta: '∞' });
 
-      if (window.showSaveFilePicker) {
-          const handle = await window.showSaveFilePicker({ suggestedName: f.name });
-          const writable = await handle.createWritable();
-          
-          const res = await fetch(zipUrl, { headers: { 'Range': `bytes=${f.dataStart}-${f.dataEnd}` }, signal: controller.signal });
-          let stream = res.body;
-          if (f.compression === 8) stream = stream.pipeThrough(new DecompressionStream('deflate-raw'));
-          
-          const reader = stream.getReader();
-          let loaded = 0;
-          while(true) {
-              const {done, value} = await reader.read();
-              if(done) break;
-              await writable.write(value);
-              loaded += value.length;
-              
-              let speed = ((Date.now() - clockStart)/1000) > 0 ? loaded / ((Date.now() - clockStart)/1000) : 0;
-              updateDlItem(id, { status: 'active', pct: Math.round((loaded/f.size)*100), loaded, total: f.size, speed: formatSize(speed)+'/s', eta: formatTime((f.size-loaded)/speed) });
-          }
-          await writable.close();
-          updateDlItem(id, { status: 'done', pct: 100, loaded: f.size, total: f.size, speed: '✓ Saved', eta: formatTime((Date.now()-clockStart)/1000) });
-      } else {
-          // SW Fallback Download (Fixed Race Condition)
-          await registerStreamSW(id, { zipUrl, compression: f.compression, size: f.size, dataStart: f.dataStart, dataEnd: f.dataEnd, name: f.name });
-          
-          const a = document.createElement('a'); 
-          a.href = `/__zip_stream/${id}?dl=1`; 
-          a.download = f.name;
-          document.body.appendChild(a); 
-          a.click(); 
-          setTimeout(() => document.body.removeChild(a), 100);
-          
-          updateDlItem(id, { status: 'done', pct: 100, loaded: f.size, total: f.size, speed: 'Browser handled', eta: 'Check browser downloads' });
-      }
+      // FIX: Force SW to register before executing download
+      await registerStreamSW(id, { zipUrl, compression: f.compression, size: f.size, dataStart: f.dataStart, dataEnd: f.dataEnd, name: f.name });
+      
+      // FIX: URL mapped to current page using query param to guarantee scope hit
+      const dlUrl = window.location.pathname + `?sw_stream=${id}&dl=1`;
+      
+      // FIX: Use hidden iframe to avoid document unload/cancellation issues
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = dlUrl;
+      document.body.appendChild(iframe);
+      
+      // Cleanup iframe after a delay
+      setTimeout(() => { if (document.body.contains(iframe)) document.body.removeChild(iframe); }, 10000);
+      
+      updateDlItem(id, { status: 'done', pct: 100, loaded: f.size, total: f.size, speed: 'Sent to Browser', eta: 'Check Downloads Bar' });
+
   } catch(e) {
       updateDlItem(id, { status: 'error', pct: 0, loaded: 0, total: 0, speed: e.name === 'AbortError' ? '❌ Cancelled' : 'Error', eta: '—', error: e.message });
   } finally { delete activeAbortControllers[id]; updateQueueCount(); }
@@ -397,7 +373,7 @@ async function downloadFile(path) {
 
 function cancelTask(id) { if (activeAbortControllers[id]) activeAbortControllers[id].abort(); }
 
-// ─── Video Play via SW ───
+// ─── Video Play via SW + Intents Jugad ───
 async function playVideo(path) {
   const f = allFiles.find(file => file.path === path); if (!f) return;
   closeVideo();
@@ -409,21 +385,34 @@ async function playVideo(path) {
       await prepareFileData(f);
       const streamId = 'vid_' + Date.now();
       
-      // Fixed Race Condition for Playback too
       await registerStreamSW(streamId, { zipUrl, compression: f.compression, size: f.size, dataStart: f.dataStart, dataEnd: f.dataEnd, name: f.name });
 
-      const virtualUrl = `/__zip_stream/${streamId}`;
+      // FIX: Use Query Parameter URL
+      const virtualUrl = window.location.pathname + `?sw_stream=${streamId}`;
+      const absoluteUrl = window.location.origin + virtualUrl;
+      
       const isAudio = ['mp3', 'wav', 'ogg'].includes(f.ext);
       const player = document.getElementById(isAudio ? 'audioPlayer' : 'videoPlayer');
       
-      document.getElementById('streamTargetUrl').value = window.location.origin + virtualUrl;
+      document.getElementById('streamTargetUrl').value = absoluteUrl;
       document.getElementById('codecBadge').textContent = f.ext.toUpperCase();
+
+      // Android Player Intents
+      if (!isAudio) {
+          const pureUrl = absoluteUrl.replace(/^https?:\/\//, '');
+          const isHttps = absoluteUrl.startsWith('https') ? 'https' : 'http';
+          document.getElementById('vlcBtn').href = `intent://${pureUrl}#Intent;package=org.videolan.vlc;type=video/*;scheme=${isHttps};end;`;
+          document.getElementById('mxBtn').href = `intent://${pureUrl}#Intent;package=com.mxtech.videoplayer.ad;type=video/*;scheme=${isHttps};end;`;
+          document.getElementById('externalPlayers').style.display = 'flex';
+      } else {
+          document.getElementById('externalPlayers').style.display = 'none';
+      }
 
       player.src = virtualUrl;
       player.style.display = 'block';
       
       player.oncanplay = () => { document.getElementById('videoLoading').classList.add('hidden'); };
-      player.play().catch(() => {});
+      player.play().catch(() => { /* Auto-play prevented */ });
   } catch(e) {
       document.getElementById('videoLoading').innerHTML = `<span style="color:var(--danger)">❌ Error: ${e.message}</span>`;
   }
@@ -463,7 +452,7 @@ function closeVideo() {
 function addDlItem(id, name) {
   const el = document.createElement('div'); el.className = 'dl-item'; el.id = id;
   el.innerHTML = `
-    <div class="dl-item-top"><div class="dl-item-name">${name}</div><button class="btn-cancel-task" onclick="cancelTask('${id}')">✕ Cancel</button></div>
+    <div class="dl-item-top"><div class="dl-item-name">${name}</div></div>
     <div class="progress-bar-wrap"><div class="progress-bar" id="${id}_bar"></div></div>
     <div class="dl-stats">
       <div class="stat-box"><span class="stat-label">Speed</span><span class="stat-val" id="${id}_speed">—</span></div>
@@ -477,8 +466,7 @@ function addDlItem(id, name) {
 function updateDlItem(id, d) {
   const el = document.getElementById(id); if (!el) return; el.className = `dl-item ${d.status}`;
   const bar = document.getElementById(id + '_bar'); bar.style.width = d.pct + '%'; bar.className = `progress-bar ${d.status === 'done' ? 'done' : d.status === 'error' ? 'error' : ''}`;
-  if (d.status === 'done' || d.status === 'error') { const c = el.querySelector('.btn-cancel-task'); if(c) c.style.display = 'none'; }
-  document.getElementById(id + '_speed').textContent = d.speed; document.getElementById(id + '_loaded').textContent = `${formatSize(d.loaded)} / ${formatSize(d.total)}`;
+  document.getElementById(id + '_speed').textContent = d.speed; document.getElementById(id + '_loaded').textContent = d.status === 'done' ? 'Complete' : `${formatSize(d.loaded)} / ${formatSize(d.total)}`;
   document.getElementById(id + '_eta').textContent = d.eta; document.getElementById(id + '_pct').textContent = d.pct + '%';
 }
 
